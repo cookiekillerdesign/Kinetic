@@ -1,0 +1,41 @@
+{
+  "name": "@cookiekiller/kinetic",
+  "version": "0.2.0",
+  "private": true,
+  "description": "cookiekiller®'s personal motion & effects library — 58 hand-built, dependency-free animation primitives (vanilla core + React 18 wrappers) for Awwwards-grade sites.",
+  "type": "module",
+  "author": "Mihail Barascov (cookiekiller®)",
+  "license": "UNLICENSED",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./react": "./src/react/index.js",
+    "./react/*": "./src/react/*",
+    "./effects/*": "./src/effects/*",
+    "./core/*": "./src/core/*",
+    "./css/*": "./src/css/*"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

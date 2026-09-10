@@ -1,0 +1,205 @@
+/**
+ * Kinetic — utilities.css
+ * The CSS half of every effect engine in src/effects/. Import this after
+ * tokens.css and keyframes.css. Class names are prefixed `kx-` throughout
+ * to avoid collisions with your own project styles.
+ */
+
+/* ============ cursor ============ */
+.kx-cursor { position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none; z-index: var(--kx-z-cursor); mix-blend-mode: exclusion; will-change: transform; }
+.kx-cursor-ring { position: absolute; top: 0; left: 0; width: 30px; height: 30px; color: #fff; transform: translate(-50%,-50%) scale(1) rotate(0deg); transition: transform .45s var(--kx-ease); }
+.kx-cursor-ring .tick { position: absolute; width: 9px; height: 9px; border: 1.5px solid currentColor; transition: inherit; }
+.kx-cursor-ring .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.kx-cursor-ring .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.kx-cursor-ring .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.kx-cursor-ring .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.kx-cursor-ring .dot { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: currentColor; }
+.kx-cursor.on-link .kx-cursor-ring { transform: translate(-50%,-50%) scale(1.9) rotate(45deg); }
+.kx-cursor.on-link .kx-cursor-ring .dot { opacity: 0; transform: scale(0); }
+.kx-cursor-label { position: fixed; top: 0; left: 0; pointer-events: none; z-index: var(--kx-z-cursor); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; background: var(--kx-accent); color: #fff; padding: 8px 14px; border-radius: 99px; transform: translate(18px,18px) scale(0); transition: transform .3s var(--kx-ease); white-space: nowrap; }
+.kx-cursor-label.show { transform: translate(18px,18px) scale(1); }
+@media (hover:none), (pointer:coarse) { .kx-cursor, .kx-cursor-label { display: none; } }
+
+/* ============ grain ============ */
+.kx-grain { position: fixed; inset: -50%; width: 200%; height: 200%; pointer-events: none; z-index: var(--kx-z-overlay); opacity: .05; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: kx-grain 6s steps(8) infinite; }
+.kx-grain-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: var(--kx-z-overlay); image-rendering: pixelated; }
+@media (prefers-reduced-motion: reduce) { .kx-grain { animation: none; } }
+
+/* ============ split text reveal ============ */
+.kx-split { display: inline-block; }
+.kx-split .ch { display: inline-block; transform: translateY(70%) rotate(4deg); opacity: 0; transition: transform .8s var(--kx-ease), opacity .6s var(--kx-ease); }
+.kx-split.in .ch { transform: none; opacity: 1; }
+.kx-split .sp { display: inline-block; width: .28em; white-space: pre; }
+@media (prefers-reduced-motion: reduce) { .kx-split .ch { transition: opacity .3s; } }
+
+/* ============ generic scroll reveal ============ */
+.kx-reveal { opacity: 0; transform: translateY(44px); transition: opacity var(--kx-dur-reveal) var(--kx-ease), transform var(--kx-dur-reveal) var(--kx-ease); }
+.kx-reveal.in { opacity: 1; transform: none; }
+.kx-reveal--fade { transform: none; }
+.kx-reveal--scale { transform: scale(.9); }
+.kx-reveal--scale.in { transform: none; }
+.kx-reveal--left { transform: translateX(-44px); }
+.kx-reveal--left.in { transform: none; }
+.kx-reveal--right { transform: translateX(44px); }
+.kx-reveal--right.in { transform: none; }
+
+/* ============ stagger grid ============ */
+.kx-stagger-item { opacity: 0; transform: translateY(24px) scale(.97); transition: opacity var(--kx-dur-slow) var(--kx-ease), transform var(--kx-dur-slow) var(--kx-ease); transition-delay: var(--kx-stagger-delay, 0ms); }
+.kx-stagger.in .kx-stagger-item { opacity: 1; transform: none; }
+
+/* ============ image reveal mask ============ */
+.kx-reveal-mask { clip-path: inset(0 0 100% 0); transition: clip-path 1.1s var(--kx-ease); }
+.kx-reveal-mask[data-kx-direction="up"] { clip-path: inset(0 0 100% 0); }
+.kx-reveal-mask[data-kx-direction="up"].in { clip-path: inset(0 0 0% 0); }
+.kx-reveal-mask[data-kx-direction="left"] { clip-path: inset(0 100% 0 0); }
+.kx-reveal-mask[data-kx-direction="left"].in { clip-path: inset(0 0% 0 0); }
+
+/* ============ marquee / ticker ============ */
+.kx-marquee { display: flex; overflow: hidden; white-space: nowrap; }
+.kx-marquee-track { flex: 0 0 auto; white-space: nowrap; padding-right: 2em; }
+.kx-marquee-grid { display: flex; flex-direction: column; gap: 1em; }
+.kx-marquee-row { display: flex; overflow: hidden; }
+
+/* ============ text mask scroll fill ============ */
+.kx-fill-text { position: relative; }
+.kx-fill-text .fill { position: absolute; inset: 0; color: var(--kx-accent); clip-path: inset(0 calc(100% - var(--kx-fill,0%)) 0 0); }
+
+/* ============ counter / typewriter ============ */
+.kx-typewriter-caret::after { content: '|'; margin-left: 2px; animation: kx-bounce-caret 1s step-end infinite; }
+
+/* ============ magnetic elements ============ */
+.kx-magnetic, .kx-magnetic-text, .kx-magnetic-btn { display: inline-block; will-change: transform; }
+
+/* ============ spotlight hover ============ */
+.kx-spotlight { position: relative; overflow: hidden; }
+.kx-spotlight::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(var(--kx-spot-r,260px) circle at var(--kx-spot-x,50%) var(--kx-spot-y,50%), rgba(255,255,255,.12), transparent 70%);
+  opacity: var(--kx-spot-o,0); transition: opacity .3s;
+}
+.kx-spotlight:hover::before { --kx-spot-o: 1; }
+
+/* ============ hover glow card ============ */
+.kx-glow-card { position: relative; isolation: isolate; }
+.kx-glow-card::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; z-index: -1;
+  background: radial-gradient(var(--kx-glow-size,180px) circle at var(--kx-glow-x,50%) var(--kx-glow-y,50%), var(--kx-glow-color, rgba(79,124,255,.5)), transparent 70%);
+  opacity: var(--kx-glow-o,0); transition: opacity .35s; filter: blur(6px);
+}
+.kx-glow-card:hover::after { --kx-glow-o: 1; }
+
+/* ============ 3D tilt cards ============ */
+.kx-tilt { perspective: 900px; }
+.kx-tilt-inner { transform-style: preserve-3d; transition: transform .25s var(--kx-ease); will-change: transform; position: relative; }
+.kx-tilt-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: overlay; }
+
+/* ============ flip cards ============ */
+.kx-flip { perspective: 1200px; }
+.kx-flip-inner { position: relative; width: 100%; height: 100%; transition: transform .7s var(--kx-ease-in-out); transform-style: preserve-3d; }
+.kx-flip.is-flipped .kx-flip-inner { transform: rotateY(180deg); }
+.kx-flip-front, .kx-flip-back { position: absolute; inset: 0; backface-visibility: hidden; }
+.kx-flip-back { transform: rotateY(180deg); }
+
+/* ============ loaders ============ */
+.kx-skeleton { position: relative; overflow: hidden; background: rgba(127,127,127,.14); }
+.kx-skeleton::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  background-size: 200% 100%; animation: kx-shimmer 1.4s linear infinite;
+}
+.kx-skeleton.is-done { opacity: 0; transition: opacity .35s; }
+.kx-content { opacity: 0; transition: opacity .4s var(--kx-ease); }
+.kx-content.in { opacity: 1; }
+.kx-read-progress { position: fixed; top: 0; left: 0; height: 3px; width: 100%; background: var(--kx-accent); transform-origin: left; transform: scaleX(var(--kx-progress,0)); z-index: var(--kx-z-overlay); }
+.kx-progress-bar { transform: scaleX(var(--kx-progress,0)); transform-origin: left; }
+
+/* ============ curtain intro ============ */
+.kx-curtain { position: fixed; inset: 0; z-index: 10000; display: flex; }
+.kx-curtain-panel { flex: 1; background: var(--kx-ink); transform: translateY(0); transition: transform var(--kx-dur-slow) var(--kx-ease-in-out); }
+.kx-curtain-panel.is-open { transform: translateY(-100%); }
+
+/* ============ page transition overlay ============ */
+.kx-transition-overlay { position: fixed; inset: 0; background: var(--kx-ink); transform: translateY(100%); pointer-events: none; z-index: 10000; }
+.kx-transition-overlay.is-covering { transform: translateY(0); transition: transform .5s var(--kx-ease-in-out); }
+.kx-transition-overlay.is-covered { transform: translateY(0); transition: none; }
+.kx-transition-overlay.is-revealing { transform: translateY(-100%); transition: transform .5s var(--kx-ease-in-out); }
+
+/* ============ magnetic nav pill ============ */
+.kx-magnetic-nav { position: relative; display: inline-flex; gap: 4px; padding: 4px; }
+.kx-nav-pill { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 99px; background: var(--kx-accent); z-index: 0; }
+.kx-nav-link { position: relative; z-index: 1; padding: 8px 16px; }
+
+/* ============ fullscreen menu morph ============ */
+.kx-menu-trigger { width: 28px; height: 20px; position: relative; }
+.kx-menu-trigger span { position: absolute; left: 0; width: 100%; height: 2px; background: currentColor; transition: transform .35s var(--kx-ease), opacity .2s; }
+.kx-menu-trigger span:nth-child(1) { top: 0; }
+.kx-menu-trigger span:nth-child(2) { top: 9px; }
+.kx-menu-trigger span:nth-child(3) { top: 18px; }
+.kx-menu-trigger.is-open span:nth-child(1) { transform: translateY(9px) rotate(45deg); }
+.kx-menu-trigger.is-open span:nth-child(2) { opacity: 0; }
+.kx-menu-trigger.is-open span:nth-child(3) { transform: translateY(-9px) rotate(-45deg); }
+.kx-menu-overlay { position: fixed; inset: 0; z-index: 9500; clip-path: circle(0% at calc(100% - 40px) 40px); transition: clip-path .6s var(--kx-ease-in-out); pointer-events: none; }
+.kx-menu-overlay.is-open { clip-path: circle(150% at calc(100% - 40px) 40px); pointer-events: auto; }
+
+/* ============ sticky header hide ============ */
+[class*="header"].kx-header-hidden, .site-header.kx-header-hidden { transform: translateY(-100%); transition: transform .35s var(--kx-ease); }
+
+/* ============ buttons ============ */
+.kx-draw-btn { position: relative; background: none; border: none; padding: 12px 26px; cursor: pointer; }
+.kx-draw-svg { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.kx-draw-rect { fill: none; stroke: currentColor; stroke-width: 1.5; transition: stroke-dashoffset .5s var(--kx-ease); }
+.kx-draw-btn:hover .kx-draw-rect { stroke-dashoffset: 0; }
+.kx-ripple-btn, .kx-magnetic-btn { position: relative; overflow: hidden; }
+
+/* ============ backgrounds ============ */
+.kx-aurora { position: absolute; inset: 0; overflow: hidden; filter: blur(60px); z-index: -1; }
+.kx-aurora span { position: absolute; width: 55%; height: 55%; border-radius: 50%; background: var(--kx-aurora-color, var(--kx-accent)); opacity: .55; mix-blend-mode: screen; }
+.kx-aurora span:nth-child(1) { top: -10%; left: -10%; animation: kx-aurora-drift-1 18s ease-in-out infinite; }
+.kx-aurora span:nth-child(2) { top: 20%; right: -15%; animation: kx-aurora-drift-2 22s ease-in-out infinite; }
+.kx-aurora span:nth-child(3) { bottom: -15%; left: 20%; animation: kx-aurora-drift-3 26s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .kx-aurora span { animation: none; } }
+
+/* ============ forms ============ */
+.kx-field { position: relative; padding-top: 18px; }
+.kx-field-label { position: absolute; left: 0; top: 28px; transition: transform .2s var(--kx-ease), font-size .2s var(--kx-ease), opacity .2s; opacity: .6; pointer-events: none; }
+.kx-field.has-value .kx-field-label, .kx-field.is-focused .kx-field-label { transform: translateY(-22px); font-size: 12px; opacity: 1; }
+.kx-field-input { width: 100%; background: none; border: none; border-bottom: 1px solid currentColor; padding: 8px 0; }
+.kx-field-input:focus { outline: none; }
+
+.kx-checkbox { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.kx-checkbox-input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.kx-checkbox-box { width: 20px; height: 20px; border: 1.5px solid currentColor; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; transition: background .2s; }
+.kx-checkbox-check { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset .25s var(--kx-ease); }
+.kx-checkbox.is-checked .kx-checkbox-check { stroke-dashoffset: 0; }
+.kx-checkbox.is-checked .kx-checkbox-box { background: var(--kx-accent); border-color: var(--kx-accent); color: #fff; }
+
+/* ============ scroll snap dots ============ */
+.kx-snap-container { scroll-snap-type: y mandatory; overflow-y: auto; }
+.kx-snap-section { scroll-snap-align: start; }
+.kx-snap-dots { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: var(--kx-z-overlay); }
+.kx-snap-dot { width: 8px; height: 8px; border-radius: 50%; border: none; background: rgba(127,127,127,.4); padding: 0; cursor: pointer; transition: background .25s, transform .25s; }
+.kx-snap-dot.active { background: var(--kx-accent); transform: scale(1.4); }
+
+/* ============ glitch text ============ */
+.kx-glitch { position: relative; }
+.kx-glitch.is-glitching::before, .kx-glitch.is-glitching::after {
+  content: attr(data-text); position: absolute; inset: 0; overflow: hidden;
+}
+.kx-glitch.is-glitching::before { color: var(--kx-accent-2, #ff5f7e); clip-path: inset(10% 0 65% 0); transform: translate(-3px,-1px); mix-blend-mode: screen; }
+.kx-glitch.is-glitching::after { color: var(--kx-accent, #4f7cff); clip-path: inset(60% 0 15% 0); transform: translate(3px,1px); mix-blend-mode: screen; }
+
+/* ============ scroll-timeline reveal (native animation-timeline: view()) ============ */
+.kx-timeline-reveal { opacity: 0; } /* only the initial paint before the browser assigns the timeline; JS/CSS above take over immediately */
+
+/* ============ stacked scroll cards ============ */
+.kx-stack { position: relative; }
+.kx-stack-card { position: sticky; top: 0; } /* per-card `top` offset is set by initStackedScrollCards */
+
+/* ============ gooey / metaball nav indicator ============ */
+.kx-gooey-nav { position: relative; }
+.kx-gooey-fx { position: absolute; inset: 0; filter: url(#kx-goo); pointer-events: none; }
+.kx-gooey-lead, .kx-gooey-trail { position: absolute; top: 0; left: 0; border-radius: 999px; background: var(--kx-accent); }
+.kx-gooey-nav [data-gooey] { position: relative; z-index: 1; }
+
+/* ============ image sequence scrub ============ */
+.kx-sequence { display: block; width: 100%; height: 100%; }

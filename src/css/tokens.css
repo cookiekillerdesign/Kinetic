@@ -1,0 +1,38 @@
+/**
+ * Kinetic — tokens.css
+ * Shared design/motion tokens. Override these in your own :root to reskin
+ * every effect at once — nothing in utilities.css hardcodes a raw value
+ * that isn't one of these.
+ */
+:root {
+  /* ---- easing (mirrors core/easing.js cssEasing) ---- */
+  --kx-ease: cubic-bezier(.19,1,.22,1);        /* easeOutExpo-ish — the default */
+  --kx-ease-in-out: cubic-bezier(.65,0,.35,1);
+  --kx-ease-back: cubic-bezier(.34,1.56,.64,1);
+  --kx-ease-quart: cubic-bezier(.25,1,.5,1);
+
+  /* ---- durations ---- */
+  --kx-dur-fast: 250ms;
+  --kx-dur: 500ms;
+  --kx-dur-slow: 900ms;
+  --kx-dur-reveal: 1000ms;
+
+  /* ---- color (swap for your brand) ---- */
+  --kx-ink: #0f0f13;
+  --kx-paper: #f1f0ec;
+  --kx-accent: #4f7cff;
+  --kx-accent-2: #ff5f7e;
+
+  /* ---- z-index scale for overlay-ish effects ---- */
+  --kx-z-cursor: 9999;
+  --kx-z-overlay: 9000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --kx-dur-fast: 1ms;
+    --kx-dur: 1ms;
+    --kx-dur-slow: 1ms;
+    --kx-dur-reveal: 1ms;
+  }
+}

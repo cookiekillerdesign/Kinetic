@@ -1,0 +1,1223 @@
+<title>Kinetic — 58 motion primitives, 0 dependencies</title>
+<style>
+/* ===================================================================
+   Kinetic showcase — design tokens
+   Single committed dark world (matches the cookiekiller® brand this
+   library was extracted from), so tokens are declared once, plainly,
+   with no light/dark switching.
+=================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,700;6..12,800;6..12,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ink:#0b0b10; --ink-soft:#151519; --ink-raise:#1c1c22;
+  --paper:#f3f1ea;
+  --cobalt:#4f6bff; --coral:#ff5f7e; --mint:#2be3b0;
+  --line:rgba(243,241,234,.12); --line-strong:rgba(243,241,234,.22);
+  --muted:rgba(243,241,234,.56); --muted-2:rgba(243,241,234,.36);
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:'Nunito Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --ease:cubic-bezier(.19,1,.22,1); --ease-io:cubic-bezier(.65,0,.35,1); --ease-back:cubic-bezier(.34,1.56,.64,1);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:auto;}
+body{
+  background:var(--ink); color:var(--paper); font-family:var(--sans);
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  overflow-x:hidden; cursor:none;
+}
+@media (hover:none),(pointer:coarse){ body{ cursor:auto; } }
+h1,h2,h3,h4{ font-family:var(--sans); font-weight:800; letter-spacing:-.02em; text-wrap:balance; margin:0; }
+p{ margin:0; }
+a{ color:inherit; }
+img{ max-width:100%; display:block; }
+::selection{ background:var(--cobalt); color:#fff; }
+
+.wrap{ max-width:1280px; margin:0 auto; padding:0 clamp(20px,4vw,56px); }
+.eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+
+/* ---------- native view transitions ---------- */
+/* This is a single-page showcase (no real page navigations), so the default
+   whole-document cross-fade is switched off; only elements we explicitly
+   tag with view-transition-name (see the transitions chapter) animate. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root){ animation:none !important; mix-blend-mode:normal; }
+
+/* ---------- global effect layers (grain / cursor / progress) ---------- */
+.kx-grain{ position:fixed; inset:-50%; width:200%; height:200%; pointer-events:none; z-index:9000; opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:kx-grain 6s steps(8) infinite; }
+@keyframes kx-grain{ 0%,100%{transform:translate(0,0);} 25%{transform:translate(-2%,3%);} 50%{transform:translate(3%,-2%);} 75%{transform:translate(-3%,-3%);} }
+
+.kx-cursor{ position:fixed; top:0; left:0; width:0; height:0; pointer-events:none; z-index:9999; mix-blend-mode:exclusion; will-change:transform; }
+.kx-cursor-ring{ position:absolute; top:0; left:0; width:30px; height:30px; color:#fff; transform:translate(-50%,-50%) scale(1) rotate(0deg); transition:transform .45s var(--ease); }
+.kx-cursor-ring .tick{ position:absolute; width:9px; height:9px; border:1.5px solid currentColor; transition:inherit; }
+.kx-cursor-ring .tl{ top:0; left:0; border-right:0; border-bottom:0; }
+.kx-cursor-ring .tr{ top:0; right:0; border-left:0; border-bottom:0; }
+.kx-cursor-ring .bl{ bottom:0; left:0; border-right:0; border-top:0; }
+.kx-cursor-ring .br{ bottom:0; right:0; border-left:0; border-top:0; }
+.kx-cursor-ring .dot{ position:absolute; top:50%; left:50%; width:4px; height:4px; margin:-2px 0 0 -2px; border-radius:50%; background:currentColor; }
+.kx-cursor.on-link .kx-cursor-ring{ transform:translate(-50%,-50%) scale(1.9) rotate(45deg); }
+.kx-cursor.on-link .kx-cursor-ring .dot{ opacity:0; transform:scale(0); }
+.kx-cursor-label{ position:fixed; top:0; left:0; pointer-events:none; z-index:9999; font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; background:var(--cobalt); color:#fff; padding:7px 13px; border-radius:99px; transform:translate(18px,18px) scale(0); transition:transform .3s var(--ease); white-space:nowrap; }
+.kx-cursor-label.show{ transform:translate(18px,18px) scale(1); }
+@media (hover:none),(pointer:coarse){ .kx-cursor,.kx-cursor-label{ display:none; } }
+
+.read-progress{ position:fixed; top:0; left:0; height:2px; width:100%; background:linear-gradient(90deg,var(--cobalt),var(--coral)); transform-origin:left; transform:scaleX(var(--kx-progress,0)); z-index:9500; }
+
+/* ---------- reveal / stagger (used throughout page) ---------- */
+.kx-reveal{ opacity:0; transform:translateY(36px); transition:opacity .9s var(--ease),transform .9s var(--ease); }
+.kx-reveal.in{ opacity:1; transform:none; }
+.kx-split{ display:inline-block; }
+.kx-split .ch{ display:inline-block; transform:translateY(70%) rotate(4deg); opacity:0; transition:transform .8s var(--ease),opacity .6s var(--ease); }
+.kx-split.in .ch{ transform:none; opacity:1; }
+.kx-split .sp{ display:inline-block; width:.28em; white-space:pre; }
+.kx-stagger-item{ opacity:0; transform:translateY(20px) scale(.97); transition:opacity .7s var(--ease),transform .7s var(--ease); transition-delay:var(--kx-stagger-delay,0ms); }
+.kx-stagger.in .kx-stagger-item{ opacity:1; transform:none; }
+.kx-reveal-mask{ clip-path:inset(0 0 100% 0); transition:clip-path 1s var(--ease); }
+.kx-reveal-mask.in{ clip-path:inset(0 0 0% 0); }
+
+/* ---------- header ---------- */
+.site-header{ position:sticky; top:0; z-index:900; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:18px clamp(20px,4vw,56px); background:rgba(11,11,16,.72); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); transition:transform .35s var(--ease); }
+.site-header.kx-header-hidden{ transform:translateY(-100%); }
+.wordmark{ font-family:var(--mono); font-weight:600; font-size:15px; letter-spacing:.02em; display:flex; align-items:center; gap:10px; }
+.wordmark .dot{ width:7px; height:7px; border-radius:50%; background:var(--cobalt); box-shadow:0 0 12px var(--cobalt); }
+.chapter-nav{ display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; }
+.chapter-nav::-webkit-scrollbar{ display:none; }
+.chapter-nav a{ font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); text-decoration:none; padding:7px 11px; border-radius:99px; white-space:nowrap; transition:color .2s,background .2s; }
+.chapter-nav a:hover{ color:var(--paper); background:var(--ink-raise); }
+.header-meta{ font-family:var(--mono); font-size:11px; color:var(--muted-2); white-space:nowrap; }
+
+/* ---------- hero ---------- */
+.hero{ position:relative; padding:clamp(64px,12vh,140px) 0 clamp(56px,9vh,96px); overflow:hidden; }
+.hero-bg{ position:absolute; inset:0; z-index:-1; opacity:.85; }
+.hero-kicker{ display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+.hero h1{ font-size:clamp(44px,8vw,104px); line-height:.98; }
+.hero h1 .accent{ color:var(--cobalt); }
+.hero-sub{ margin-top:26px; max-width:56ch; font-size:clamp(16px,1.6vw,19px); color:var(--muted); }
+.hero-stats{ display:flex; gap:clamp(28px,5vw,64px); margin-top:52px; flex-wrap:wrap; }
+.stat-num{ font-family:var(--mono); font-size:clamp(30px,4vw,46px); font-weight:600; color:var(--paper); font-variant-numeric:tabular-nums; }
+.stat-label{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+
+.hero-marquee{ margin-top:64px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:16px 0; overflow:hidden; }
+.kx-marquee{ display:flex; overflow:hidden; white-space:nowrap; }
+.kx-marquee-track{ flex:0 0 auto; white-space:nowrap; padding-right:2.4em; font-family:var(--mono); font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.kx-marquee-track b{ color:var(--paper); font-weight:600; }
+
+/* ---------- chapter sections ---------- */
+.chapter{ padding:clamp(64px,10vh,120px) 0; border-top:1px solid var(--line); scroll-margin-top:80px; }
+.chapter-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:40px; flex-wrap:wrap; }
+.chapter-num{ font-family:var(--mono); font-size:13px; color:var(--cobalt); }
+.chapter-head h2{ font-size:clamp(28px,4vw,42px); margin-top:8px; }
+.chapter-desc{ max-width:46ch; color:var(--muted); font-size:15px; }
+.chapter-count{ font-family:var(--mono); font-size:12px; color:var(--muted-2); white-space:nowrap; }
+
+.effects-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px; }
+
+.effect-card{ border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; background:var(--ink-soft); transition:border-color .25s; }
+.effect-card:hover{ border-color:var(--line-strong); }
+.effect-card-stage{ position:relative; height:190px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:
+    radial-gradient(120% 100% at 0% 0%, rgba(79,107,255,.10), transparent 60%),
+    radial-gradient(120% 100% at 100% 100%, rgba(255,95,126,.08), transparent 60%),
+    var(--ink-raise);
+  padding:16px; text-align:center; }
+.effect-card-body{ padding:18px 20px 20px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line); }
+.effect-file{ font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; color:var(--muted-2); }
+.effect-card-body h3{ font-size:17px; font-weight:700; }
+.effect-desc{ font-size:13.5px; color:var(--muted); line-height:1.55; }
+.code-block{ position:relative; margin-top:6px; background:var(--ink); border:1px solid var(--line); border-radius:10px; }
+.code-block pre{ margin:0; padding:12px 14px; overflow-x:auto; font-family:var(--mono); font-size:11.5px; line-height:1.6; color:#c9d6ff; }
+.copy-btn{ position:absolute; top:7px; right:7px; font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--ink-raise); border:1px solid var(--line); border-radius:7px; padding:4px 8px; cursor:pointer; transition:color .2s,border-color .2s; }
+.copy-btn:hover{ color:var(--paper); border-color:var(--line-strong); }
+.copy-btn.copied{ color:var(--mint); border-color:var(--mint); }
+.demo-note{ font-family:var(--mono); font-size:10.5px; color:var(--muted-2); }
+
+/* ---------- generic demo primitives (reused across cards) ---------- */
+.demo-btn{ font-family:var(--sans); font-weight:700; font-size:14px; color:var(--ink); background:var(--paper); padding:11px 20px; border:none; border-radius:99px; cursor:pointer; }
+.demo-btn.ghost{ background:transparent; color:var(--paper); border:1.5px solid var(--line-strong); }
+.demo-chip{ font-family:var(--mono); font-size:11px; letter-spacing:.04em; padding:8px 14px; border:1px solid var(--line-strong); border-radius:99px; color:var(--paper); background:var(--ink); cursor:pointer; }
+.demo-swatch{ width:56px; height:56px; border-radius:12px; background:var(--cobalt); }
+canvas{ display:block; width:100%; height:100%; }
+
+/* --- cursor / pointer stages --- */
+.kx-spotlight-demo{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; }
+.kx-spotlight-demo::before{ content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(var(--kx-spot-r,140px) circle at var(--kx-spot-x,50%) var(--kx-spot-y,50%), rgba(255,255,255,.16), transparent 70%); opacity:var(--kx-spot-o,0); transition:opacity .3s; }
+.kx-spotlight-demo:hover::before{ --kx-spot-o:1; }
+.magnetic-text-demo{ font-family:var(--mono); font-size:22px; font-weight:600; }
+
+/* --- text stages --- */
+.glitch-demo{ position:relative; font-family:var(--mono); font-weight:700; font-size:20px; }
+.glitch-demo.is-glitching::before,.glitch-demo.is-glitching::after{ content:attr(data-text); position:absolute; inset:0; overflow:hidden; }
+.glitch-demo.is-glitching::before{ color:var(--coral); clip-path:inset(10% 0 65% 0); transform:translate(-3px,-1px); mix-blend-mode:screen; }
+.glitch-demo.is-glitching::after{ color:var(--cobalt); clip-path:inset(60% 0 15% 0); transform:translate(3px,1px); mix-blend-mode:screen; }
+.mini-marquee{ display:flex; overflow:hidden; white-space:nowrap; width:100%; }
+.mini-marquee-track{ flex:0 0 auto; white-space:nowrap; padding-right:2em; font-family:var(--mono); font-size:14px; }
+.counter-demo{ font-family:var(--mono); font-size:38px; font-weight:600; color:var(--paper); }
+.counter-demo .suf{ color:var(--cobalt); }
+.typewriter-demo{ font-family:var(--mono); font-size:16px; }
+.kx-typewriter-caret::after{ content:'|'; margin-left:2px; animation:kx-caret 1s step-end infinite; }
+@keyframes kx-caret{ 0%,100%{opacity:1;} 50%{opacity:0;} }
+.fill-text-demo{ position:relative; font-weight:800; font-size:20px; text-align:left; padding:0 8px; }
+.fill-text-demo .base{ color:var(--muted-2); }
+.fill-text-demo .fill{ position:absolute; inset:0; left:8px; color:var(--cobalt); clip-path:inset(0 calc(100% - var(--kx-fill,40%)) 0 0); pointer-events:none; }
+.fill-range{ width:100%; margin-top:14px; accent-color:var(--cobalt); }
+.scroll-type-demo{ font-size:16px; line-height:1.55; text-align:left; }
+
+/* --- scroll stages --- */
+.parallax-demo{ position:relative; width:100%; height:100%; }
+.parallax-demo span{ position:absolute; border-radius:50%; }
+.snap-demo{ width:100%; height:100%; overflow-y:auto; scroll-snap-type:y mandatory; border-radius:12px; border:1px solid var(--line-strong); }
+.snap-demo section{ height:100%; scroll-snap-align:start; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:13px; }
+.snap-demo section:nth-child(1){ background:rgba(79,107,255,.16); }
+.snap-demo section:nth-child(2){ background:rgba(255,95,126,.14); }
+.snap-demo section:nth-child(3){ background:rgba(43,227,176,.14); }
+
+/* --- pin / horizontal scroll big blocks --- */
+/* IMPORTANT: overflow:hidden must never sit on an ANCESTOR of a position:sticky
+   element (it breaks sticky's containing-block math entirely) — so the border/
+   radius/clipping that would naturally go on .big-demo lives on .big-demo-inner
+   (the sticky element itself) instead, where clipping its own content is safe. */
+.big-demo{ margin-top:20px; }
+.big-demo-outer{ position:relative; }
+.big-demo-inner{ position:sticky; top:64px; height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--ink-soft); border:1px solid var(--line); border-radius:20px; }
+.pin-progress-num{ font-family:var(--mono); font-size:clamp(60px,12vw,160px); font-weight:700; color:var(--paper); font-variant-numeric:tabular-nums; }
+.pin-progress-label{ position:absolute; bottom:32px; left:32px; font-family:var(--mono); font-size:12px; color:var(--muted); }
+.hscroll-track{ display:flex; height:100%; will-change:transform; }
+.hscroll-panel{ flex:0 0 100vw; max-width:900px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; padding:40px; border-right:1px solid var(--line); }
+.hscroll-panel .num{ font-family:var(--mono); font-size:13px; color:var(--cobalt); }
+.hscroll-panel h4{ font-size:clamp(22px,3vw,34px); }
+
+/* --- stacked scroll cards big block --- */
+/* Unlike pin/hscroll above, the sticky elements here are the cards
+   themselves (no separate outer/inner wrapper), so nothing wraps them in
+   overflow:hidden — each card safely clips its own content instead. */
+.kx-stack{ display:flex; flex-direction:column; margin-top:20px; }
+.stack-card-visual{ height:calc(100vh - 64px); border-radius:20px; border:1px solid var(--line); display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding:0 clamp(24px,6vw,80px); overflow:hidden; }
+.stack-card-visual .stack-num{ font-family:var(--mono); font-size:13px; color:rgba(255,255,255,.65); letter-spacing:.14em; text-transform:uppercase; margin-bottom:16px; }
+.stack-card-visual h3{ font-size:clamp(28px,5vw,56px); color:#fff; max-width:22ch; }
+.stack-card-visual p{ margin-top:14px; max-width:46ch; color:rgba(255,255,255,.78); font-size:15px; }
+
+/* --- webgl stages --- */
+.ripple-wrap,.lens-wrap{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; }
+.ripple-wrap canvas,.lens-wrap canvas{ position:absolute; inset:0; width:100%; height:100%; }
+.gen-art-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; width:100%; height:100%; }
+.gen-art-grid canvas{ border-radius:8px; }
+.scrub-stage{ position:relative; width:100%; height:100%; }
+.scrub-stage canvas{ border-radius:10px; }
+
+/* --- transitions stages --- */
+.pt-stage{ position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px; }
+.pt-overlay{ position:absolute !important; inset:0; background:var(--cobalt); transform:translateY(100%); pointer-events:none; z-index:2; }
+.pt-overlay.is-covering{ transform:translateY(0); transition:transform .5s var(--ease-io); }
+.pt-overlay.is-covered{ transform:translateY(0); transition:none; }
+.pt-overlay.is-revealing{ transform:translateY(-100%); transition:transform .5s var(--ease-io); }
+.curtain-stage{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; background:linear-gradient(135deg,var(--cobalt),var(--coral)); }
+.curtain-demo{ position:absolute !important; inset:0; display:flex; z-index:2; }
+.curtain-demo .panel{ flex:1; background:var(--ink); transition:transform .8s var(--ease-io); }
+.curtain-demo .panel.is-open{ transform:translateY(-100%); }
+.flip-row{ display:flex; gap:10px; width:100%; }
+.flip-chip{ flex:1; height:64px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:13px; cursor:pointer; border:1px solid var(--line-strong); }
+.vt-page-stage{ position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; border-radius:12px; overflow:hidden; }
+.vt-page-card{ width:100%; height:100%; border-radius:12px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-end; padding:16px; font-family:var(--mono); font-size:12px; color:#fff; }
+.vt-filter-row{ display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+.vt-filter-grid{ display:flex; gap:8px; flex-wrap:wrap; }
+.vt-chip{ font-family:var(--mono); font-size:11px; padding:8px 12px; border-radius:8px; background:var(--ink-raise); border:1px solid var(--line-strong); }
+
+/* --- loaders --- */
+.preloader-demo{ font-family:var(--mono); text-align:center; }
+.preloader-demo .pct{ font-size:40px; font-weight:600; }
+.skeleton-demo{ width:100%; }
+.kx-skeleton{ position:relative; overflow:hidden; background:rgba(243,241,234,.08); border-radius:10px; height:70px; }
+.kx-skeleton::after{ content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent); background-size:200% 100%; animation:kx-shimmer 1.4s linear infinite; }
+@keyframes kx-shimmer{ 0%{background-position:-150% 0;} 100%{background-position:150% 0;} }
+.kx-skeleton.is-done{ opacity:0; transition:opacity .35s; position:absolute; }
+.kx-content{ opacity:0; transition:opacity .4s var(--ease); font-family:var(--mono); font-size:13px; }
+.kx-content.in{ opacity:1; }
+
+/* --- cards / 3D --- */
+.kx-tilt{ perspective:800px; width:100%; height:100%; }
+.kx-tilt-inner{ transform-style:preserve-3d; transition:transform .25s var(--ease); width:100%; height:100%; border-radius:12px; background:var(--ink-raise); border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; position:relative; font-family:var(--mono); font-size:12px; color:var(--muted); }
+.kx-tilt-glare{ position:absolute; inset:0; border-radius:inherit; pointer-events:none; mix-blend-mode:overlay; }
+.glow-card-demo{ position:relative; isolation:isolate; width:100%; height:100%; border-radius:12px; border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; color:var(--muted); }
+.glow-card-demo::after{ content:''; position:absolute; inset:-1px; border-radius:inherit; z-index:-1; background:radial-gradient(180px circle at var(--kx-glow-x,50%) var(--kx-glow-y,50%), rgba(79,107,255,.55), transparent 70%); opacity:var(--kx-glow-o,0); transition:opacity .35s; filter:blur(6px); }
+.glow-card-demo:hover::after{ --kx-glow-o:1; }
+.kx-flip{ perspective:1000px; width:120px; height:80px; }
+.kx-flip-inner{ position:relative; width:100%; height:100%; transition:transform .7s var(--ease-io); transform-style:preserve-3d; cursor:pointer; }
+.kx-flip.is-flipped .kx-flip-inner{ transform:rotateY(180deg); }
+.kx-flip-front,.kx-flip-back{ position:absolute; inset:0; backface-visibility:hidden; border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; }
+.kx-flip-front{ background:var(--cobalt); color:#fff; }
+.kx-flip-back{ background:var(--mint); color:var(--ink); transform:rotateY(180deg); }
+.magnetic-card-demo{ width:100%; height:100%; border-radius:12px; background:var(--ink-raise); border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; color:var(--muted); will-change:transform; }
+
+/* --- grid --- */
+.stagger-mini{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; width:100%; }
+.stagger-mini .chip{ height:44px; border-radius:8px; background:var(--ink-raise); border:1px solid var(--line-strong); }
+.morph-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; width:100%; }
+.morph-grid .chip{ height:44px; border-radius:8px; background:var(--cobalt); }
+.marquee-grid-demo{ display:flex; flex-direction:column; gap:8px; width:100%; }
+.marquee-grid-demo .row{ display:flex; overflow:hidden; }
+.marquee-grid-demo .track{ flex:0 0 auto; white-space:nowrap; font-family:var(--mono); font-size:11px; padding-right:1.4em; color:var(--muted); }
+
+/* --- nav --- */
+.nav-demo{ position:relative; display:inline-flex; gap:4px; padding:4px; border:1px solid var(--line-strong); border-radius:99px; }
+.nav-demo .pill{ position:absolute; top:4px; bottom:4px; left:0; border-radius:99px; background:var(--cobalt); z-index:0; }
+.nav-demo a{ position:relative; z-index:1; padding:7px 14px; font-family:var(--mono); font-size:11px; text-decoration:none; color:var(--paper); }
+.menu-demo-stage{ position:relative; width:100%; height:100%; }
+.menu-demo-overlay{ position:absolute !important; inset:0; background:var(--ink); clip-path:circle(0% at 90% 15%); transition:clip-path .55s var(--ease-io); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; z-index:2; }
+.menu-demo-overlay.is-open{ clip-path:circle(150% at 90% 15%); }
+.gooey-demo{ position:relative; display:inline-flex; padding:4px; border:1px solid var(--line-strong); border-radius:999px; }
+.gooey-fx{ position:absolute; inset:0; filter:url(#kx-goo); pointer-events:none; }
+.kx-gooey-lead,.kx-gooey-trail{ position:absolute; top:0; left:0; border-radius:999px; background:var(--cobalt); }
+.gooey-demo [data-gooey]{ position:relative; z-index:1; padding:9px 16px; font-family:var(--mono); font-size:11px; text-decoration:none; color:var(--paper); }
+
+/* --- buttons --- */
+.draw-btn{ position:relative; background:none; border:none; padding:12px 24px; cursor:pointer; color:var(--paper); font-family:var(--mono); font-size:12px; }
+.draw-svg{ position:absolute; inset:0; overflow:visible; pointer-events:none; }
+.draw-rect{ fill:none; stroke:currentColor; stroke-width:1.5; transition:stroke-dashoffset .5s var(--ease); }
+.draw-btn:hover .draw-rect{ stroke-dashoffset:0 !important; }
+.ripple-btn{ position:relative; overflow:hidden; }
+
+/* --- backgrounds --- */
+.aurora-demo{ position:relative; width:100%; height:100%; overflow:hidden; border-radius:12px; filter:blur(30px); }
+.aurora-demo span{ position:absolute; width:60%; height:60%; border-radius:50%; opacity:.6; mix-blend-mode:screen; }
+.aurora-demo span:nth-child(1){ background:var(--cobalt); top:-10%; left:-10%; animation:aurora1 9s ease-in-out infinite; }
+.aurora-demo span:nth-child(2){ background:var(--coral); top:20%; right:-15%; animation:aurora2 11s ease-in-out infinite; }
+.aurora-demo span:nth-child(3){ background:var(--mint); bottom:-15%; left:20%; animation:aurora3 13s ease-in-out infinite; }
+@keyframes aurora1{ 0%,100%{transform:translate(0,0);} 50%{transform:translate(20%,10%);} }
+@keyframes aurora2{ 0%,100%{transform:translate(0,0);} 50%{transform:translate(-15%,-10%);} }
+@keyframes aurora3{ 0%,100%{transform:translate(0,0);} 50%{transform:translate(10%,-15%);} }
+
+/* --- forms --- */
+.field-demo{ position:relative; padding-top:18px; width:100%; }
+.field-demo label{ position:absolute; left:0; top:28px; transition:transform .2s var(--ease),font-size .2s,opacity .2s; opacity:.5; pointer-events:none; font-size:14px; }
+.field-demo.has-value label,.field-demo.is-focused label{ transform:translateY(-22px); font-size:11px; opacity:1; color:var(--cobalt); }
+.field-demo input{ width:100%; background:none; border:none; border-bottom:1px solid var(--line-strong); padding:8px 0; color:var(--paper); font-family:var(--sans); font-size:15px; }
+.field-demo input:focus{ outline:none; border-color:var(--cobalt); }
+.checkbox-demo{ display:inline-flex; align-items:center; gap:10px; cursor:pointer; font-family:var(--mono); font-size:12px; }
+.checkbox-demo input{ position:absolute; opacity:0; width:1px; height:1px; }
+.checkbox-box{ width:22px; height:22px; border:1.5px solid var(--line-strong); border-radius:6px; display:inline-flex; align-items:center; justify-content:center; transition:background .2s,border-color .2s; flex:none; }
+.checkbox-check{ width:14px; height:14px; stroke:#fff; stroke-width:2.4; fill:none; stroke-dasharray:20; stroke-dashoffset:20; transition:stroke-dashoffset .25s var(--ease); }
+.checkbox-demo.is-checked .checkbox-check{ stroke-dashoffset:0; }
+.checkbox-demo.is-checked .checkbox-box{ background:var(--cobalt); border-color:var(--cobalt); }
+
+/* ---------- footer ---------- */
+footer{ padding:64px 0 96px; border-top:1px solid var(--line); }
+.footer-grid{ display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; align-items:flex-end; }
+.footer-note{ color:var(--muted); font-size:14px; max-width:44ch; }
+.footer-credit{ font-family:var(--mono); font-size:11px; color:var(--muted-2); }
+
+@media (max-width:640px){
+  .chapter-nav{ display:none; }
+  .hscroll-panel{ flex-basis:100vw; }
+}
+</style>
+<div class="kx-grain" aria-hidden="true"></div>
+<div class="kx-cursor" id="cursor" aria-hidden="true">
+  <span class="kx-cursor-ring"><i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i><i class="dot"></i></span>
+</div>
+<div class="kx-cursor-label" id="cursorLabel" aria-hidden="true"></div>
+<div class="read-progress" id="readProgress"></div>
+
+<header class="site-header" id="siteHeader">
+  <div class="wordmark"><span class="dot"></span>KINETIC</div>
+  <nav class="chapter-nav" aria-label="Chapters">
+    <a href="#cursor">Cursor</a><a href="#text">Text</a><a href="#scroll">Scroll</a><a href="#webgl">WebGL</a>
+    <a href="#transitions">Transitions</a><a href="#loaders">Loaders</a><a href="#cards">Cards</a><a href="#grid">Grid</a>
+    <a href="#nav">Nav</a><a href="#buttons">Buttons</a><a href="#backgrounds">BG</a><a href="#forms">Forms</a>
+  </nav>
+  <div class="header-meta">by cookiekiller®</div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <canvas class="hero-bg" id="heroMesh" aria-hidden="true"></canvas>
+    <div class="hero-kicker eyebrow">A personal motion &amp; effects library — 58 primitives, 0 dependencies</div>
+    <h1><span class="kx-split" id="heroTitle" data-cursor-label="Look around">Kinetic<span class="accent">.</span></span></h1>
+    <p class="hero-sub">Every cursor trick, scroll reveal, shader and micro-interaction from the cookiekiller® toolkit, extracted into one library — vanilla core plus React wrappers — so the next site starts from a working set of Awwwards-grade moves instead of a blank file. Now with native View Transitions for page and block changes.</p>
+    <div class="hero-stats">
+      <div><div class="stat-num" data-to="58" id="statEffects">0</div><div class="stat-label">Effects</div></div>
+      <div><div class="stat-num" data-to="12" id="statCats">0</div><div class="stat-label">Categories</div></div>
+      <div><div class="stat-num" data-to="0" id="statDeps">0</div><div class="stat-label">Runtime deps</div></div>
+      <div><div class="stat-num" data-to="100" data-suffix="%" id="statRM">0</div><div class="stat-label">Reduced-motion aware</div></div>
+    </div>
+    <div class="hero-marquee">
+      <div class="kx-marquee" id="heroMarquee">
+        <div class="kx-marquee-track">Cursor &amp; Pointer &nbsp;·&nbsp; <b>Text</b> &nbsp;·&nbsp; Scroll &nbsp;·&nbsp; <b>WebGL &amp; Canvas</b> &nbsp;·&nbsp; Transitions &nbsp;·&nbsp; <b>Loaders</b> &nbsp;·&nbsp; Cards &amp; 3D &nbsp;·&nbsp; <b>Grid</b> &nbsp;·&nbsp; Navigation &nbsp;·&nbsp; <b>Buttons</b> &nbsp;·&nbsp; Backgrounds &nbsp;·&nbsp; <b>Forms</b> &nbsp;·&nbsp; </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- chapters are rendered by JS from the EFFECTS registry -->
+  <div id="chapters"></div>
+
+  <section class="chapter wrap" id="pinned-demos">
+    <div class="chapter-head">
+      <div>
+        <div class="chapter-num">SCROLL — LIVE</div>
+        <h2>Pinned, horizontal, scrubbed &amp; stacked scroll, in real height</h2>
+        <p class="chapter-desc" style="margin-top:10px;">These need real page height to feel right, so they get room instead of a small card. Keep scrolling.</p>
+      </div>
+    </div>
+    <div class="big-demo">
+      <div class="big-demo-outer" id="pinOuter" style="height:280vh;">
+        <div class="big-demo-inner">
+          <div class="pin-progress-num" id="pinProgressNum">00</div>
+          <div class="pin-progress-label">pinSection() — progress driven straight from scroll position</div>
+        </div>
+      </div>
+    </div>
+    <div class="big-demo" style="margin-top:20px;">
+      <div class="big-demo-outer" id="hscrollOuter" style="height:320vh;">
+        <div class="big-demo-inner" style="overflow:hidden;">
+          <div class="hscroll-track" id="hscrollTrack">
+            <div class="hscroll-panel"><span class="num">01</span><h4>Vertical scroll,</h4></div>
+            <div class="hscroll-panel"><span class="num">02</span><h4>converted to</h4></div>
+            <div class="hscroll-panel"><span class="num">03</span><h4>horizontal motion —</h4></div>
+            <div class="hscroll-panel"><span class="num">04</span><h4>same technique as a gallery rail.</h4></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="big-demo" style="margin-top:20px;">
+      <div class="big-demo-outer" id="seqOuter" style="height:300vh;">
+        <div class="big-demo-inner">
+          <div class="scrub-stage" style="width:min(60vh,520px);height:min(60vh,520px);">
+            <canvas class="kx-sequence" id="seqCanvas"></canvas>
+          </div>
+          <div class="pin-progress-label">imageSequenceScrub() — 48 generated frames, scrubbed by scroll position</div>
+        </div>
+      </div>
+    </div>
+    <div class="kx-stack" id="stackDemo">
+      <div class="kx-stack-card stack-card-visual" style="background:linear-gradient(135deg,var(--cobalt),var(--ink));">
+        <div class="stack-num">01 — stackedScrollCards</div>
+        <h3>58 effects, 0 runtime dependencies.</h3>
+        <p>Every module is hand-written — no animation library underneath, same as the cookiekiller® site itself.</p>
+      </div>
+      <div class="kx-stack-card stack-card-visual" style="background:linear-gradient(135deg,var(--coral),var(--ink));">
+        <div class="stack-num">02 — stackedScrollCards</div>
+        <h3>One shared raf, observer &amp; pointer.</h3>
+        <p>Dozens of simultaneous effects share a single ticker, a single IntersectionObserver pool, a single pointer tracker.</p>
+      </div>
+      <div class="kx-stack-card stack-card-visual" style="background:linear-gradient(135deg,var(--mint),var(--ink));">
+        <div class="stack-num">03 — stackedScrollCards</div>
+        <h3>Vanilla core, React wrappers.</h3>
+        <p>The exact same engine either way — import from the core directly, or reach for a hook or component.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="footer-grid">
+    <div>
+      <div class="wordmark" style="margin-bottom:14px;"><span class="dot"></span>KINETIC</div>
+      <p class="footer-note">Extracted from the cookiekiller® portfolio (React + Vite, Supabase CMS). Vanilla core works anywhere; React hooks/components ship alongside it. Every effect respects <code>prefers-reduced-motion</code>.</p>
+    </div>
+    <p class="footer-credit">v0.2.0 — built for cookiekiller® by Claude</p>
+  </div>
+</footer>
+<script>var Kinetic=(()=>{var tt=Object.defineProperty,_t=Object.getOwnPropertyDescriptor,Rt=Object.getOwnPropertyNames,Ct=Object.prototype.hasOwnProperty,qt=(t,r)=>{for(var c in r)tt(t,c,{get:r[c],enumerable:!0})},Pt=(t,r,c,s)=>{if(r&&typeof r=="object"||typeof r=="function")for(let n of Rt(r))!Ct.call(t,n)&&n!==c&&tt(t,n,{get:()=>r[n],enumerable:!(s=_t(r,n))||s.enumerable});return t},It=t=>Pt(tt({},"__esModule",{value:!0}),t),lt={};qt(lt,{FULLSCREEN_VERT:()=>K,bindFullscreenQuad:()=>J,bindSmoothAnchors:()=>be,clamp:()=>$,compileShader:()=>rt,createProgram:()=>j,cssEasing:()=>F,damp:()=>R,dist:()=>Zt,easeInBack:()=>Qt,easeInCubic:()=>Gt,easeInExpo:()=>Yt,easeInOutBack:()=>jt,easeInOutCubic:()=>Ht,easeInOutExpo:()=>Wt,easeInOutQuad:()=>Dt,easeInOutQuart:()=>zt,easeInQuad:()=>Ft,easeInQuart:()=>Xt,easeOutBack:()=>Vt,easeOutBounce:()=>Jt,easeOutCubic:()=>Ut,easeOutElastic:()=>Kt,easeOutExpo:()=>et,easeOutQuad:()=>Bt,easeOutQuart:()=>Nt,flip:()=>at,getGL:()=>Z,getPointer:()=>ne,hashSeed:()=>mt,initAnimatedGrainCanvas:()=>Pe,initAuroraGradient:()=>pn,initBlobCursor:()=>ue,initBorderDraw:()=>mn,initCounters:()=>he,initCursorTrail:()=>ce,initCustomCheckbox:()=>yn,initCustomCursor:()=>ie,initDotGrid:()=>hn,initFlipCard:()=>Oe,initFloatingLabel:()=>gn,initGenerativeArt:()=>De,initGlitchText:()=>fe,initGooeyIndicator:()=>ln,initGradientMesh:()=>qe,initHorizontalScroll:()=>ke,initHoverGlow:()=>Ze,initImageDistortHover:()=>$e,initImageRevealMask:()=>Ne,initImageSequenceScrub:()=>He,initInfiniteMarqueeGrid:()=>rn,initKineticScrollType:()=>xe,initMagnetic:()=>ct,initMagneticButton:()=>fn,initMagneticCard:()=>tn,initMagneticNav:()=>sn,initMagneticText:()=>se,initMarquee:()=>pe,initMenuMorph:()=>cn,initNoiseBackground:()=>vn,initPageTransition:()=>Xe,initParallax:()=>Ee,initParticleField:()=>Ue,initPinSection:()=>St,initRippleClick:()=>dn,initRippleDistort:()=>Ae,initScrambleText:()=>me,initScrollProgress:()=>bt,initScrollProgressBar:()=>Ke,initScrollReveal:()=>we,initScrollSnapSections:()=>Se,initScrollTimelineReveal:()=>Te,initSplitText:()=>le,initSpotlightHover:()=>ae,initStackedScrollCards:()=>en,initStaggerIn:()=>nn,initStickyHeaderHide:()=>an,initTextMaskScrollFill:()=>ge,initTilt3d:()=>Je,initTypewriter:()=>ve,initVirtualSmoothScroll:()=>Le,isFinePointer:()=>B,isTouchDevice:()=>ht,lerp:()=>ft,linear:()=>$t,makeNoise2D:()=>st,makeValueNoise1D:()=>re,map:()=>U,morphLayout:()=>on,mulberry32:()=>dt,observe:()=>N,observeOnce:()=>z,onPointerMove:()=>Y,onReducedMotionChange:()=>te,onTick:()=>_,prefersReducedMotion:()=>L,resizeCanvasToDisplaySize:()=>O,resolveSkeleton:()=>je,round:()=>Ot,runCurtainReveal:()=>ze,runPreloader:()=>Qe,runViewTransition:()=>Ye,scramble:()=>Et,scrollToHash:()=>kt,smoothScrollTo:()=>Lt,supportsScrollTimeline:()=>Tt,supportsViewTransitions:()=>At,tagViewTransition:()=>We,transitionBlock:()=>Ve});var $t=t=>t,Ft=t=>t*t,Bt=t=>1-(1-t)*(1-t),Dt=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,Gt=t=>t*t*t,Ut=t=>1-Math.pow(1-t,3),Ht=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,Xt=t=>t*t*t*t,Nt=t=>1-Math.pow(1-t,4),zt=t=>t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2,Yt=t=>t===0?0:Math.pow(2,10*t-10),et=t=>t>=1?1:1-Math.pow(2,-10*t),Wt=t=>t===0?0:t===1?1:t<.5?Math.pow(2,20*t-10)/2:(2-Math.pow(2,-20*t+10))/2,Vt=(t,r=1.70158)=>1+(r+1)*Math.pow(t-1,3)+r*Math.pow(t-1,2),Qt=(t,r=1.70158)=>(r+1)*t*t*t-r*t*t,jt=(t,r=1.70158)=>{const c=r*1.525;return t<.5?Math.pow(2*t,2)*((c+1)*2*t-c)/2:(Math.pow(2*t-2,2)*((c+1)*(t*2-2)+c)+2)/2},Kt=t=>{const r=2*Math.PI/3;return t===0?0:t===1?1:Math.pow(2,-10*t)*Math.sin((t*10-.75)*r)+1},Jt=t=>t<1/2.75?7.5625*t*t:t<2/2.75?7.5625*(t-=1.5/2.75)*t+.75:t<2.5/2.75?7.5625*(t-=2.25/2.75)*t+.9375:7.5625*(t-=2.625/2.75)*t+.984375,F={out:"cubic-bezier(.19,1,.22,1)",inOut:"cubic-bezier(.65,0,.35,1)",outBack:"cubic-bezier(.34,1.56,.64,1)",outQuart:"cubic-bezier(.25,1,.5,1)",inOutExpo:"cubic-bezier(.87,0,.13,1)"},$=(t,r=0,c=1)=>Math.min(c,Math.max(r,t)),ft=(t,r,c)=>t+(r-t)*c,R=(t,r,c,s)=>ft(t,r,1-Math.exp(-c*s)),U=(t,r,c,s,n)=>s+($(t,Math.min(r,c),Math.max(r,c))-r)/(c-r)*(n-s),Zt=(t,r,c,s)=>Math.hypot(c-t,s-r),Ot=(t,r=0)=>{const c=10**r;return Math.round(t*c)/c};function dt(t){let r=t>>>0;return function(){r|=0,r=r+1831565813|0;let c=Math.imul(r^r>>>15,1|r);return c=c+Math.imul(c^c>>>7,61|c)^c,((c^c>>>14)>>>0)/4294967296}}function mt(t){let r=0;for(let c=0;c<t.length;c++)r=Math.imul(31,r)+t.charCodeAt(c)|0;return r}var pt="(prefers-reduced-motion: reduce)";function L(){return typeof matchMedia=="function"&&matchMedia(pt).matches}function te(t){if(typeof matchMedia!="function")return t(!1),()=>{};const r=matchMedia(pt);t(r.matches);const c=s=>t(s.matches);return r.addEventListener?r.addEventListener("change",c):r.addListener(c),()=>r.removeEventListener?r.removeEventListener("change",c):r.removeListener(c)}function B(){return typeof matchMedia=="function"&&matchMedia("(hover:hover) and (pointer:fine)").matches}function ht(){return typeof window<"u"&&("ontouchstart"in window||navigator.maxTouchPoints>0)}var H=new Set,G=null,X=0;function vt(t){const r=X?Math.min((t-X)/1e3,.05):0;X=t;for(const c of H)c(t,r);G=H.size?requestAnimationFrame(vt):null}function _(t){return H.add(t),G==null&&(X=0,G=requestAnimationFrame(vt)),()=>{H.delete(t),!H.size&&G!=null&&(cancelAnimationFrame(G),G=null)}}typeof document<"u"&&document.addEventListener("visibilitychange",()=>{document.visibilityState==="visible"&&(X=0)});var gt=new Map;function ee(t){return`${t.threshold??0}|${t.rootMargin??"0px"}|${t.root?"r":"_"}`}function N(t,r,c={}){const s=ee(c);let n=gt.get(s);if(!n){const e=new WeakMap;n={io:new IntersectionObserver(o=>{for(const a of o)e.get(a.target)?.(a)},c),cbs:e},gt.set(s,n)}return n.cbs.set(t,r),n.io.observe(t),()=>n.io.unobserve(t)}function z(t,r,c={}){const s=N(t,n=>{n.isIntersecting&&(s(),r(n))},c);return s}var q={x:innerWidth/2,y:innerHeight/2,nx:.5,ny:.5,vx:0,vy:0,active:!1},nt=new Set,ot=0,yt=!1;function xt(){if(yt||typeof window>"u")return;yt=!0;const t=c=>{const s=performance.now(),n=ot?(s-ot)/1e3:.016;ot=s;const e=c.clientX,i=c.clientY;q.vx=n>0?(e-q.x)/n:0,q.vy=n>0?(i-q.y)/n:0,q.x=e,q.y=i,q.nx=e/innerWidth,q.ny=i/innerHeight,q.active=!0;for(const o of nt)o(q)},r=()=>{q.active=!1};addEventListener("mousemove",t,{passive:!0}),addEventListener("mouseleave",r,{passive:!0})}function Y(t){return xt(),nt.add(t),()=>nt.delete(t)}function ne(){return xt(),q}function rt(t,r,c){const s=t.createShader(r);if(t.shaderSource(s,c),t.compileShader(s),!t.getShaderParameter(s,t.COMPILE_STATUS)){const n=t.getShaderInfoLog(s);throw t.deleteShader(s),new Error(`Kinetic/webgl: shader compile failed
+${n}`)}return s}function j(t,r,c){const s=rt(t,t.VERTEX_SHADER,r),n=rt(t,t.FRAGMENT_SHADER,c),e=t.createProgram();if(t.attachShader(e,s),t.attachShader(e,n),t.linkProgram(e),!t.getProgramParameter(e,t.LINK_STATUS)){const i=t.getProgramInfoLog(e);throw t.deleteProgram(e),new Error(`Kinetic/webgl: program link failed
+${i}`)}return{program:e,vs:s,fs:n}}var K=`
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;function J(t,r){const c=new Float32Array([-1,-1,1,-1,-1,1,1,1]),s=t.createBuffer();t.bindBuffer(t.ARRAY_BUFFER,s),t.bufferData(t.ARRAY_BUFFER,c,t.STATIC_DRAW);const n=t.getAttribLocation(r,"a_pos");return t.enableVertexAttribArray(n),t.vertexAttribPointer(n,2,t.FLOAT,!1,0,0),s}function Z(t,r={}){return t.getContext("webgl",{alpha:!0,premultipliedAlpha:!1,antialias:!0,...r})||t.getContext("experimental-webgl",r)}function O(t,r){const c=Math.min(devicePixelRatio||1,2),s=Math.max(1,Math.round(t.clientWidth*c)),n=Math.max(1,Math.round(t.clientHeight*c));return t.width===s&&t.height===n?!1:(t.width=s,t.height=n,r&&r.viewport(0,0,s,n),!0)}var oe=.5*(Math.sqrt(3)-1),W=(3-Math.sqrt(3))/6,it=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[1,0],[-1,0],[0,1],[0,-1],[0,1],[0,-1]];function st(t=1){const r=new Uint8Array(512),c=new Uint8Array(256);let s=t>>>0||1;const n=()=>(s^=s<<13,s^=s>>>17,s^=s<<5,(s>>>0)%65536/65536);for(let e=0;e<256;e++)c[e]=e;for(let e=255;e>0;e--){const i=Math.floor(n()*(e+1));[c[e],c[i]]=[c[i],c[e]]}for(let e=0;e<512;e++)r[e]=c[e&255];return function(i,o){let a=0,u=0,l=0;const f=(i+o)*oe,d=Math.floor(i+f),p=Math.floor(o+f),h=(d+p)*W,m=d-h,v=p-h,y=i-m,b=o-v,S=y>b?1:0,x=y>b?0:1,g=y-S+W,w=b-x+W,E=y-1+2*W,k=b-1+2*W,A=d&255,M=p&255,T=it[r[A+r[M]]%12],C=it[r[A+S+r[M+x]]%12],D=it[r[A+1+r[M+1]]%12];let P=.5-y*y-b*b;P>=0&&(P*=P,a=P*P*(T[0]*y+T[1]*b));let I=.5-g*g-w*w;I>=0&&(I*=I,u=I*I*(C[0]*g+C[1]*w));let Q=.5-E*E-k*k;return Q>=0&&(Q*=Q,l=Q*Q*(D[0]*E+D[1]*k)),70*(a+u+l)}}function re(t=1){const r=st(t);return c=>(r(c,0)+1)/2}function ie({cursorEl:t=document.querySelector(".kx-cursor"),labelEl:r=document.querySelector(".kx-cursor-label"),speed:c=.2,interactiveSelector:s="a,button,[data-cursor-hover]",labelAttr:n="data-cursor-label"}={}){if(!t||ht()||!B())return t?.style.setProperty("display","none"),()=>{};let e=innerWidth/2,i=innerHeight/2,o=e,a=i;const u=L(),l=m=>{e=m.clientX,i=m.clientY},f=m=>{m.target.closest(s)&&t.classList.add("on-link");const v=m.target.closest(`[${n}]`);v&&r&&(r.textContent=v.getAttribute(n),r.classList.add("show"))},d=m=>{m.target.closest(s)&&t.classList.remove("on-link"),m.target.closest(`[${n}]`)&&r&&r.classList.remove("show")},p=()=>{t.style.display="none",r&&(r.style.display="none"),h()};addEventListener("mousemove",l,{passive:!0}),addEventListener("touchstart",p,{passive:!0}),document.addEventListener("mouseover",f),document.addEventListener("mouseout",d);const h=_(()=>{const m=u?1:c;o+=(e-o)*m,a+=(i-a)*m,t.style.transform=`translate(${o}px,${a}px)`,r&&(r.style.left=o+"px",r.style.top=a+"px")});return function(){removeEventListener("mousemove",l),removeEventListener("touchstart",p),document.removeEventListener("mouseover",f),document.removeEventListener("mouseout",d),h()}}function ct(t=".kx-magnetic",{pull:r=.3,pullY:c=r,maxOffset:s=1/0,releaseEase:n="cubic-bezier(.19,1,.22,1)",releaseDuration:e=500}={}){if(!B()||L())return()=>{};const o=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(a=>{let u=null;const l=()=>{u=a.getBoundingClientRect()},f=p=>{u||l();let h=p.clientX-(u.left+u.width/2),m=p.clientY-(u.top+u.height/2);h=Math.max(-s,Math.min(s,h)),m=Math.max(-s,Math.min(s,m)),a.style.transform=`translate(${h*r}px,${m*c}px)`},d=()=>{u=null,a.style.transition=`transform ${e}ms ${n}`,a.style.transform="",setTimeout(()=>{a.style.transition=""},e)};return a.addEventListener("mouseenter",l),a.addEventListener("mousemove",f),a.addEventListener("mouseleave",d),window.addEventListener("resize",l),()=>{a.removeEventListener("mouseenter",l),a.removeEventListener("mousemove",f),a.removeEventListener("mouseleave",d),window.removeEventListener("resize",l)}});return()=>o.forEach(a=>a())}function se(t=".kx-magnetic-text",{radius:r=120,strength:c=18}={}){if(!B()||L())return()=>{};const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],n=[];s.forEach(a=>{if(a.dataset.kxSplit)return;const u=a.textContent;a.textContent="",a.dataset.kxSplit="1",[...u].forEach(l=>{const f=document.createElement("span");f.textContent=l===" "?"\xA0":l,f.style.display="inline-block",f.style.willChange="transform",a.appendChild(f),n.push({span:f,x:0,y:0,tx:0,ty:0})})});let e={x:-9999,y:-9999};const i=Y(a=>{e=a}),o=_((a,u)=>{for(const l of n){const f=l.span.getBoundingClientRect(),d=f.left+f.width/2,p=f.top+f.height/2,h=d-e.x,m=p-e.y,v=Math.hypot(h,m);if(v<r){const y=(1-v/r)*c;l.tx=h/(v||1)*y,l.ty=m/(v||1)*y}else l.tx=0,l.ty=0;l.x=R(l.x,l.tx,10,u),l.y=R(l.y,l.ty,10,u),l.span.style.transform=`translate(${l.x.toFixed(2)}px,${l.y.toFixed(2)}px)`}});return function(){i(),o()}}function ce({count:t=6,container:r=document.body,size:c=8,minSize:s=3,color:n="var(--kx-accent, #4f7cff)",lambda:e=22}={}){if(!B()||L())return()=>{};const i=Array.from({length:t},(l,f)=>{const d=document.createElement("div"),p=Math.max(s,c-f*(c-s)/t);return Object.assign(d.style,{position:"fixed",top:0,left:0,width:`${p}px`,height:`${p}px`,borderRadius:"50%",background:n,pointerEvents:"none",zIndex:9998,opacity:String(1-f/t*.7),willChange:"transform",mixBlendMode:"exclusion"}),r.appendChild(d),{el:d,x:innerWidth/2,y:innerHeight/2}});let o={x:innerWidth/2,y:innerHeight/2};const a=Y(l=>{o=l}),u=_((l,f)=>{let d=o.x,p=o.y;i.forEach((h,m)=>{h.x=R(h.x,d,e/(1+m*.4),f),h.y=R(h.y,p,e/(1+m*.4),f),h.el.style.transform=`translate(${h.x}px,${h.y}px) translate(-50%,-50%)`,d=h.x,p=h.y})});return function(){a(),u(),i.forEach(f=>f.el.remove())}}function ae(t=".kx-spotlight",{radius:r=260}={}){const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(n=>{n.style.setProperty("--kx-spot-r",`${r}px`);const e=i=>{const o=n.getBoundingClientRect();n.style.setProperty("--kx-spot-x",`${i.clientX-o.left}px`),n.style.setProperty("--kx-spot-y",`${i.clientY-o.top}px`)};return n.addEventListener("pointermove",e),()=>n.removeEventListener("pointermove",e)});return()=>s.forEach(n=>n())}var wt="http://www.w3.org/2000/svg";function ue({count:t=5,size:r=22,color:c="#4f6bff",damping:s=26,zIndex:n=9998}={}){if(L())return()=>{};const e=document.createElementNS(wt,"svg");e.setAttribute("aria-hidden","true"),Object.assign(e.style,{position:"fixed",inset:"0",width:"100%",height:"100%",pointerEvents:"none",zIndex:String(n)});const i="kx-blob-goo-"+Math.random().toString(36).slice(2,8);e.innerHTML=`<defs><filter id="${i}"><feGaussianBlur in="SourceGraphic" stdDeviation="${r/3}" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"/></filter></defs><g filter="url(#${i})"></g>`;const o=e.querySelector("g"),a=Array.from({length:Math.max(2,t)},()=>{const p=document.createElementNS(wt,"circle");return p.setAttribute("r",String(r/2)),p.setAttribute("fill",c),o.appendChild(p),{el:p,x:innerWidth/2,y:innerHeight/2}});document.body.appendChild(e);let u=innerWidth/2,l=innerHeight/2;const f=Y(p=>{u=p.x,l=p.y}),d=_((p,h)=>{let m=u,v=l;a.forEach((y,b)=>{const S=s-b*(s/(a.length+2));y.x=R(y.x,m,Math.max(4,S),h||1/60),y.y=R(y.y,v,Math.max(4,S),h||1/60),y.el.setAttribute("cx",String(y.x)),y.el.setAttribute("cy",String(y.y)),m=y.x,v=y.y})});return function(){f(),d(),e.remove()}}function le(t=".kx-split",{by:r="chars",baseDelay:c=.05,step:s=.026,triggerOnScroll:n=!0,threshold:e=.2}={}){const i=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],o=L(),a=[];return i.forEach(u=>{const l=u.textContent;u.textContent="",u.classList.add("kx-split");let f=0;(r==="words"?l.split(/(\s+)/):[...l]).forEach(m=>{const v=/^\s+$/.test(m),y=document.createElement("span");y.className=v?"sp":"ch",y.textContent=m,v||(y.style.transitionDelay=o?"0s":(c+f++*s).toFixed(3)+"s"),u.appendChild(y)});const p=()=>u.classList.add("in");if(o||!n){p();return}const h=z(u,p,{threshold:e,rootMargin:"0px 0px -40px 0px"});a.push(h)}),()=>a.forEach(u=>u())}function fe(t=".kx-glitch",{trigger:r="hover",loopEvery:c=4e3,burstDuration:s=420}={}){if(L())return()=>{};const n=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];n.forEach(a=>{a.dataset.kxGlitchText||(a.dataset.kxGlitchText=a.textContent,a.setAttribute("data-text",a.textContent))});const e=a=>{a.classList.add("is-glitching"),setTimeout(()=>a.classList.remove("is-glitching"),s)},i=[];if(r==="loop")return n.forEach(a=>{const u=setInterval(()=>e(a),c+Math.random()*1e3);i.push(u)}),()=>i.forEach(clearInterval);const o=n.map(a=>{const u=()=>e(a);return a.addEventListener("mouseenter",u),()=>a.removeEventListener("mouseenter",u)});return()=>o.forEach(a=>a())}var de="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";function Et(t,r=t.textContent,{chars:c=de,speed:s=30,revealDelay:n=22}={}){if(L())return t.textContent=r,()=>{};let e=0;const i=r.length;let o;function a(){let u="";for(let l=0;l<i;l++){const f=l*(n/s);e/s>=f+.4?u+=r[l]:u+=r[l]===" "?" ":c[Math.random()*c.length|0]}t.textContent=u,e++,e/s<i*n/s+1?o=requestAnimationFrame(a):t.textContent=r}return a(),()=>cancelAnimationFrame(o)}function me(t=".kx-scramble",r={}){const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(n=>{const e=n.textContent;let i=()=>{};const o=()=>{i(),i=Et(n,e,r)};return n.addEventListener("mouseenter",o),()=>{n.removeEventListener("mouseenter",o),i()}});return()=>s.forEach(n=>n())}function pe(t=".kx-marquee",{speed:r=40,hoverSlow:c=!0,direction:s=-1}={}){const n=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],e=L(),i=[];return n.forEach(o=>{const a=o.querySelector(".kx-marquee-track")||o.firstElementChild;if(!a)return;if(!a.dataset.kxDup){a.dataset.kxDup="1";const h=a.cloneNode(!0);h.setAttribute("aria-hidden","true"),o.appendChild(h),o.style.display="flex",o.style.overflow="hidden",a.style.flex="0 0 auto",a.style.whiteSpace="nowrap",h.style.flex="0 0 auto",h.style.whiteSpace="nowrap"}if(e)return;let u=0,l=1;const f=()=>{c&&(l=.35)},d=()=>{l=1};c&&(o.addEventListener("mouseenter",f),o.addEventListener("mouseleave",d));const p=_((h,m)=>{const v=a.offsetWidth||1;u+=s*r*l*m,Math.abs(u)>=v&&(u=u%v),o.style.transform=`translateX(${u}px)`});i.push(()=>{p(),c&&(o.removeEventListener("mouseenter",f),o.removeEventListener("mouseleave",d))})}),()=>i.forEach(o=>o())}function he(t=".kx-counter",{duration:r=1400,easing:c=et}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],n=L(),e=[];return s.forEach(i=>{const o=parseFloat(i.dataset.to??i.textContent)||0,a=parseFloat(i.dataset.from??"0"),u=i.dataset.decimals?parseInt(i.dataset.decimals,10):0,l=i.dataset.prefix??"",f=i.dataset.suffix??"",p=z(i,()=>{if(n){i.textContent=`${l}${o.toFixed(u)}${f}`;return}const h=performance.now(),m=v=>{const y=Math.min((v-h)/r,1),b=a+(o-a)*c(y);i.textContent=`${l}${b.toFixed(u)}${f}`,y<1&&requestAnimationFrame(m)};requestAnimationFrame(m)},{threshold:.4});e.push(p)}),()=>e.forEach(i=>i())}function ve(t=".kx-typewriter",{words:r=null,typeSpeed:c=55,deleteSpeed:s=32,pause:n=1400,loop:e=!0,cursor:i=!0}={}){const o=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],a=L(),u=[];return o.forEach(l=>{const f=r||[l.textContent];if(i&&l.classList.add("kx-typewriter-caret"),a){l.textContent=f[0];return}let d=0,p=0,h=!1;l.textContent="";function m(){const v=f[d];if(h){if(p--,l.textContent=v.slice(0,p),p===0){h=!1,d=(d+1)%f.length,u.push(setTimeout(m,c));return}u.push(setTimeout(m,s))}else{if(p++,l.textContent=v.slice(0,p),p===v.length){if(!e&&d===f.length-1)return;u.push(setTimeout(()=>{h=!0,m()},n));return}u.push(setTimeout(m,c))}}m()}),()=>u.forEach(clearTimeout)}function ge(t="[data-kx-fill]",{start:r=.85,end:c=.35}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];return s.length?_(()=>{const e=innerHeight;for(const i of s){const o=i.getBoundingClientRect(),a=$(U(o.top,e*r,e*c,0,1));i.style.setProperty("--kx-fill",`${(a*100).toFixed(1)}%`)}}):()=>{}}function ye(t){const r=t.textContent.split(/(\s+)/);t.textContent="";const c=[];return r.forEach(s=>{if(/^\s+$/.test(s)){t.appendChild(document.createTextNode(s));return}[...s].forEach(n=>{const e=document.createElement("span");e.textContent=n,e.style.display="inline-block",e.style.willChange="opacity, filter",t.appendChild(e),c.push(e)})}),c}function xe(t,{startVh:r=.85,endVh:c=.35,minOpacity:s=.14,blurPx:n=5}={}){const e=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];if(!e.length)return()=>{};if(L())return e.forEach(a=>a.style.opacity="1"),()=>{};const i=e.map(a=>({el:a,chars:ye(a)})),o=_(()=>{const a=window.innerHeight;i.forEach(({el:u,chars:l})=>{const f=u.getBoundingClientRect(),d=U(f.top,a*r,a*c,0,1),p=Math.max(1,l.length);l.forEach((h,m)=>{const v=$(U(d,m/p,(m+1)/p,0,1),0,1);h.style.opacity=String(s+v*(1-s)),h.style.filter=v>=1?"":`blur(${(1-v)*n}px)`})})});return function(){o(),i.forEach(({chars:u})=>u.forEach(l=>{l.style.opacity="",l.style.filter=""}))}}function we(t=".kx-reveal:not(.in)",{threshold:r=.12,rootMargin:c="0px 0px -40px 0px"}={}){const s=L(),n=[...document.querySelectorAll(t)];if(s)return n.forEach(i=>i.classList.add("in")),()=>{};const e=n.map(i=>{const o=N(i,a=>{a.isIntersecting&&(i.classList.add("in"),o())},{threshold:r,rootMargin:c});return o});return()=>e.forEach(i=>i())}function Ee(t="[data-kx-parallax]",{axis:r="y"}={}){if(L())return()=>{};const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(e=>({el:e,speed:parseFloat(e.dataset.kxSpeed||"0.3")}));return _(()=>{const e=innerHeight;for(const{el:i,speed:o}of s){const a=i.getBoundingClientRect();if(a.bottom<-200||a.top>e+200)continue;const l=-(a.top+a.height/2-e/2)*o;i.style.transform=r==="x"?`translateX(${l}px)`:`translateY(${l}px)`}})}function bt(t=".kx-progress-bar",{target:r=null}={}){const c=typeof t=="string"?document.querySelector(t):t;return c?_(()=>{let n;if(r){const e=r.getBoundingClientRect(),i=e.height-innerHeight;n=i>0?Math.min(1,Math.max(0,-e.top/i)):0}else{const e=document.documentElement,i=e.scrollHeight-e.clientHeight;n=i>0?e.scrollTop/i:0}c.style.setProperty("--kx-progress",n.toFixed(4))}):()=>{}}function Lt(t,r=900){const c=window.scrollY,s=t-c;if(Math.abs(s)<1)return;if(L()){window.scrollTo(0,t);return}const n=performance.now();function e(i){const o=Math.min((i-n)/r,1);window.scrollTo(0,c+s*et(o)),o<1&&requestAnimationFrame(e)}requestAnimationFrame(e)}function kt(t){const r=document.querySelector(t);if(!r)return;const c=r.getBoundingClientRect().top+window.scrollY,s=Math.abs(c-window.scrollY),n=Math.min(1500,Math.max(600,s*.55));Lt(c,n)}function be(t=document){const r=c=>{const s=c.target.closest('a[href^="#"]');if(!s||s.getAttribute("href")==="#")return;const n=s.getAttribute("href");document.querySelector(n)&&(c.preventDefault(),kt(n),history.pushState(null,"",n))};return t.addEventListener("click",r),()=>t.removeEventListener("click",r)}function Le({wrapper:t=document.querySelector("[data-kx-scroll-wrapper]"),lambda:r=9}={}){if(!t||L())return()=>{};let c=0,s=0;const n=document.createElement("div");function e(){n.style.height=`${t.scrollHeight}px`}n.style.pointerEvents="none",document.body.appendChild(n),t.style.position="fixed",t.style.top="0",t.style.left="0",t.style.width="100%",t.style.willChange="transform",e();const i=new ResizeObserver(e);i.observe(t);const o=()=>{s=window.scrollY};addEventListener("scroll",o,{passive:!0});const a=_((u,l)=>{c=R(c,s,r,l),t.style.transform=`translate3d(0, ${-c}px, 0)`});return function(){a(),i.disconnect(),removeEventListener("scroll",o),n.remove(),t.style.position="",t.style.transform=""}}function St(t=".kx-pin-outer",{onProgress:r=()=>{}}={}){const c=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];return c.length?_(()=>{for(const n of c){const e=n.getBoundingClientRect(),i=e.height-innerHeight,o=i>0?$(U(-e.top,0,i,0,1)):0;r(o,n)}}):()=>{}}function ke(t=".kx-hscroll-outer",{trackSelector:r=".kx-hscroll-track"}={}){if(L())return()=>{};const c=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];return St(c,{onProgress:(s,n)=>{const e=n.querySelector(r);if(!e)return;const i=e.scrollWidth-e.parentElement.clientWidth;e.style.transform=`translate3d(${-s*i}px,0,0)`}})}function Se(t=".kx-snap-container",{sectionSelector:r=".kx-snap-section",dotNav:c=null}={}){const s=typeof t=="string"?document.querySelector(t):t;if(!s)return()=>{};const n=[...s.querySelectorAll(r)],e=a=>{if(!["ArrowDown","ArrowUp","PageDown","PageUp"].includes(a.key))return;const u=n.findIndex(d=>{const p=d.getBoundingClientRect();return p.top>=-10&&p.top<innerHeight/2}),l=a.key==="ArrowDown"||a.key==="PageDown"?1:-1,f=n[Math.min(n.length-1,Math.max(0,u+l))];f&&(a.preventDefault(),f.scrollIntoView({behavior:"smooth"}))};s.setAttribute("tabindex",s.getAttribute("tabindex")||"0"),s.addEventListener("keydown",e);const i=[()=>s.removeEventListener("keydown",e)],o=c?document.querySelector(c):null;if(o){o.innerHTML="";const a=n.map((u,l)=>{const f=document.createElement("button");return f.className="kx-snap-dot",f.setAttribute("aria-label",`Section ${l+1}`),f.addEventListener("click",()=>u.scrollIntoView({behavior:"smooth"})),o.appendChild(f),f});n.forEach((u,l)=>{const f=N(u,d=>{a[l].classList.toggle("active",d.isIntersecting&&d.intersectionRatio>.5)},{threshold:.5,root:s});i.push(f)})}return()=>i.forEach(a=>a())}function Tt(){return typeof CSS<"u"&&typeof CSS.supports=="function"&&CSS.supports("animation-timeline","view()")}function Te(t=".kx-timeline-reveal",{range:r="entry 0% cover 35%",animationName:c="kx-timeline-in"}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];if(!s.length)return()=>{};if(L())return s.forEach(n=>n.classList.add("in")),()=>{};if(!Tt()){const n=s.map(e=>{e.classList.add("kx-reveal");const i=N(e,o=>{o.isIntersecting&&(e.classList.add("in"),i())},{threshold:.12,rootMargin:"0px 0px -40px 0px"});return i});return()=>n.forEach(e=>e())}return s.forEach(n=>{n.style.animationName=c,n.style.animationTimeline="view()",n.style.animationRange=r,n.style.animationFillMode="both",n.style.animationTimingFunction="linear"}),()=>s.forEach(n=>{n.style.animationName="",n.style.animationTimeline="",n.style.animationRange=""})}var V=40,Mt=2.2,Me=`
+precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+uniform float u_time;
+uniform float u_aspect;
+uniform int u_count;
+uniform vec3 u_points[${V}];
+
+float ripple(vec2 uv, float dirSign, float ampMul, float rotAngle, float phaseShift) {
+  float total = 0.0;
+  float s = sin(rotAngle), c = cos(rotAngle);
+  mat2 R = mat2(c, -s, s, c);
+  for (int i = 0; i < ${V}; i++) {
+    if (i >= u_count) break;
+    vec3 p = u_points[i];
+    float age = u_time - p.z;
+    if (age < 0.0 || age > ${Mt.toFixed(2)}) continue;
+    vec2 d = uv - p.xy;
+    d.x *= u_aspect;
+    d = R * d;
+    float dist = length(d);
+    float freq = 6.5, speed = 1.9, decay = 2.1;
+    float attack = smoothstep(0.0, 0.1, age);
+    float release = exp(-age * 1.7);
+    float envelope = attack * release;
+    float wave = sin(dist * freq * dirSign - age * speed + phaseShift);
+    total += wave * exp(-dist * decay) * envelope * ampMul;
+  }
+  return total;
+}
+
+float rippleField(vec2 uv) {
+  float h1 = ripple(uv, 1.0, 0.62, 0.0, 0.0);
+  float h2 = ripple(uv, -1.0, 0.14, 0.35, 3.14159);
+  return clamp(h1 + h2, -1.1, 1.1);
+}
+
+void main() {
+  vec2 uv = v_uv;
+  float eps = 0.0055;
+  float h  = rippleField(uv);
+  float hx = rippleField(uv + vec2(eps, 0.0));
+  float hy = rippleField(uv + vec2(0.0, eps));
+  vec2 grad = vec2(h - hx, h - hy) / eps;
+  grad = clamp(grad, vec2(-10.0), vec2(10.0));
+
+  vec2 duv = clamp(uv + grad * 0.0021, 0.001, 0.999);
+  vec4 color = texture2D(u_tex, duv);
+
+  vec3 normal = normalize(vec3(grad * 0.85, 1.0));
+  vec3 lightDir = normalize(vec3(0.35, 0.55, 0.78));
+  float spec = pow(max(dot(normal, lightDir), 0.0), 4.0);
+  color.rgb += spec * 0.26;
+  color.rgb += max(h, 0.0) * 0.045;
+  color.rgb *= 1.0 - clamp(-h * 0.22, 0.0, 0.13);
+
+  gl_FragColor = vec4(color.rgb, color.a);
+}
+`;function Ae(t,{sourceSelector:r=".kx-ripple-source",canvasSelector:c=".kx-ripple-canvas"}={}){if(L())return()=>{};const n=(typeof t=="string"?[...document.querySelectorAll(t)]:t&&typeof t[Symbol.iterator]=="function"?[...t]:[t]).map(e=>_e(e,r,c)).filter(Boolean);return()=>n.forEach(e=>e())}function _e(t,r,c){const s=t.querySelector(r),n=t.querySelector(c);if(!s||!n)return null;const e=Z(n);if(!e)return null;const{program:i}=j(e,K,Me);e.useProgram(i),J(e,i);const o=e.createTexture();e.bindTexture(e.TEXTURE_2D,o),e.pixelStorei(e.UNPACK_FLIP_Y_WEBGL,!0),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_WRAP_S,e.CLAMP_TO_EDGE),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_WRAP_T,e.CLAMP_TO_EDGE),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_MIN_FILTER,e.LINEAR),e.texParameteri(e.TEXTURE_2D,e.TEXTURE_MAG_FILTER,e.LINEAR);const a=e.getUniformLocation(i,"u_time"),u=e.getUniformLocation(i,"u_count"),l=e.getUniformLocation(i,"u_points"),f=e.getUniformLocation(i,"u_aspect"),d=performance.now();let p=[],h={x:.5,y:.5,t:0},m=0,v=!1;const y=new Float32Array(V*3);function b(){if(!s.offsetWidth&&!(s.videoWidth||s.naturalWidth)){m=requestAnimationFrame(b);return}O(n,e);const w=(performance.now()-d)/1e3;p=p.filter(E=>w-E.t<Mt),e.bindTexture(e.TEXTURE_2D,o);try{e.texImage2D(e.TEXTURE_2D,0,e.RGBA,e.RGBA,e.UNSIGNED_BYTE,s)}catch{}e.clearColor(0,0,0,0),e.clear(e.COLOR_BUFFER_BIT),e.uniform1f(a,w),e.uniform1f(f,n.clientWidth/Math.max(1,n.clientHeight));for(let E=0;E<V;E++){const k=p[E];y[E*3]=k?k.x:0,y[E*3+1]=k?k.y:0,y[E*3+2]=k?k.t:-999}e.uniform3fv(l,y),e.uniform1i(u,p.length),e.drawArrays(e.TRIANGLE_STRIP,0,4),v&&p.length>0?m=requestAnimationFrame(b):v=!1}function S(){v||(v=!0,m=requestAnimationFrame(b))}function x(w,E){const k=(performance.now()-d)/1e3,A=w-h.x,M=E-h.y,T=Math.sqrt(A*A+M*M),C=k-h.t;if(T<.012&&C<.018)return;const D=Math.min(6,Math.max(1,Math.floor(T/.02)));for(let P=1;P<=D;P++){const I=P/D;p.push({x:h.x+A*I,y:h.y+M*I,t:h.t+C*I})}for(;p.length>V;)p.shift();h={x:w,y:E,t:k},S()}const g=w=>{const E=t.getBoundingClientRect();x((w.clientX-E.left)/E.width,(w.clientY-E.top)/E.height)};return t.addEventListener("pointermove",g),m=requestAnimationFrame(b),function(){t.removeEventListener("pointermove",g),cancelAnimationFrame(m),e.deleteProgram(i),e.deleteTexture(o)}}var Re=`
+precision highp float;
+varying vec2 v_uv;
+uniform float u_time;
+uniform vec2 u_res;
+uniform vec3 u_c0; uniform vec3 u_c1; uniform vec3 u_c2; uniform vec3 u_c3;
+uniform float u_speed;
+
+// cheap 2D value noise (no texture lookups needed for a soft background)
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+void main() {
+  vec2 uv = v_uv;
+  uv.x *= u_res.x / u_res.y;
+  float t = u_time * u_speed;
+
+  vec2 p0 = vec2(0.3 + sin(t * 0.5) * 0.18, 0.35 + cos(t * 0.4) * 0.18);
+  vec2 p1 = vec2(0.75 + cos(t * 0.35) * 0.16, 0.3 + sin(t * 0.6) * 0.16);
+  vec2 p2 = vec2(0.25 + sin(t * 0.45 + 2.0) * 0.2, 0.75 + cos(t * 0.3 + 1.0) * 0.16);
+  vec2 p3 = vec2(0.7 + cos(t * 0.25 + 3.0) * 0.14, 0.7 + sin(t * 0.5 + 2.0) * 0.18);
+  p0.x *= u_res.x / u_res.y; p1.x *= u_res.x / u_res.y; p2.x *= u_res.x / u_res.y; p3.x *= u_res.x / u_res.y;
+
+  float d0 = distance(uv, p0), d1 = distance(uv, p1), d2 = distance(uv, p2), d3 = distance(uv, p3);
+  float w0 = 1.0 / (d0 * d0 * 10.0 + 0.05);
+  float w1 = 1.0 / (d1 * d1 * 10.0 + 0.05);
+  float w2 = 1.0 / (d2 * d2 * 10.0 + 0.05);
+  float w3 = 1.0 / (d3 * d3 * 10.0 + 0.05);
+  float wSum = w0 + w1 + w2 + w3;
+
+  vec3 color = (u_c0 * w0 + u_c1 * w1 + u_c2 * w2 + u_c3 * w3) / wSum;
+
+  // subtle grain-like noise to break gradient banding
+  float grain = (noise(uv * u_res * 0.15 + t) - 0.5) * 0.02;
+  color += grain;
+
+  gl_FragColor = vec4(color, 1.0);
+}
+`;function Ce(t){const r=parseInt(t.replace("#",""),16);return[(r>>16&255)/255,(r>>8&255)/255,(r&255)/255]}function qe(t=".kx-gradient-mesh",{colors:r=["#4f7cff","#ff5f7e","#2be3b0","#0f0f13"],speed:c=.12}={}){const s=typeof t=="string"?document.querySelector(t):t;if(!s)return()=>{};const n=L(),e=Z(s,{antialias:!1});if(!e)return()=>{};const{program:i}=j(e,K,Re);e.useProgram(i),J(e,i);const o=e.getUniformLocation(i,"u_time"),a=e.getUniformLocation(i,"u_res"),u=e.getUniformLocation(i,"u_speed"),l=["u_c0","u_c1","u_c2","u_c3"].map(m=>e.getUniformLocation(i,m));r.slice(0,4).forEach((m,v)=>e.uniform3fv(l[v],Ce(m)));const f=performance.now();let d;function p(){O(s,e),e.uniform2f(a,s.width,s.height),e.uniform1f(o,(performance.now()-f)/1e3),e.uniform1f(u,n?0:c),e.drawArrays(e.TRIANGLE_STRIP,0,4),n||(d=requestAnimationFrame(p))}p();const h=new ResizeObserver(()=>{n&&p()});return h.observe(s),function(){cancelAnimationFrame(d),h.disconnect(),e.deleteProgram(i)}}function Pe(t=".kx-grain-canvas",{opacity:r=.05,tileSize:c=128,fps:s=12}={}){const n=typeof t=="string"?document.querySelector(t):t;if(!n)return()=>{};const e=n.getContext("2d");n.width=c,n.height=c,n.style.opacity=String(r);const i=L(),o=e.createImageData(c,c);function a(){const l=o.data;for(let f=0;f<l.length;f+=4){const d=Math.random()*255|0;l[f]=l[f+1]=l[f+2]=d,l[f+3]=255}e.putImageData(o,0,0)}if(a(),i)return()=>{};const u=setInterval(a,1e3/s);return()=>clearInterval(u)}var Ie=`
+precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+uniform vec2 u_mouse;
+uniform float u_aspect;
+uniform float u_strength;
+uniform float u_radius;
+uniform float u_active;
+
+void main() {
+  vec2 uv = v_uv;
+  vec2 m = uv - u_mouse;
+  m.x *= u_aspect;
+  float d = length(m);
+  float falloff = smoothstep(u_radius, 0.0, d) * u_active;
+  vec2 dir = d > 0.0001 ? m / d : vec2(0.0);
+  vec2 duv = uv - dir * falloff * u_strength * (1.0 - d / max(u_radius,0.0001));
+  gl_FragColor = texture2D(u_tex, clamp(duv, 0.001, 0.999));
+}
+`;function $e(t,{sourceSelector:r=".kx-lens-source",canvasSelector:c=".kx-lens-canvas",strength:s=.06,radius:n=.22}={}){if(L())return()=>{};const i=(typeof t=="string"?[...document.querySelectorAll(t)]:t&&typeof t[Symbol.iterator]=="function"?[...t]:[t]).map(o=>Fe(o,r,c,s,n)).filter(Boolean);return()=>i.forEach(o=>o())}function Fe(t,r,c,s,n){const e=t.querySelector(r),i=t.querySelector(c);if(!e||!i)return null;const o=Z(i);if(!o)return null;const{program:a}=j(o,K,Ie);o.useProgram(a),J(o,a);const u=o.createTexture();o.bindTexture(o.TEXTURE_2D,u),o.pixelStorei(o.UNPACK_FLIP_Y_WEBGL,!0),o.texParameteri(o.TEXTURE_2D,o.TEXTURE_WRAP_S,o.CLAMP_TO_EDGE),o.texParameteri(o.TEXTURE_2D,o.TEXTURE_WRAP_T,o.CLAMP_TO_EDGE),o.texParameteri(o.TEXTURE_2D,o.TEXTURE_MIN_FILTER,o.LINEAR),o.texParameteri(o.TEXTURE_2D,o.TEXTURE_MAG_FILTER,o.LINEAR);const l=o.getUniformLocation(a,"u_mouse"),f=o.getUniformLocation(a,"u_aspect"),d=o.getUniformLocation(a,"u_strength"),p=o.getUniformLocation(a,"u_radius"),h=o.getUniformLocation(a,"u_active");let m={x:.5,y:.5},v=0,y=0,b;function S(){O(i,o),y=R(y,v,12,.016666666666666666),o.bindTexture(o.TEXTURE_2D,u);try{o.texImage2D(o.TEXTURE_2D,0,o.RGBA,o.RGBA,o.UNSIGNED_BYTE,e)}catch{}o.uniform2f(l,m.x,m.y),o.uniform1f(f,i.clientWidth/Math.max(1,i.clientHeight)),o.uniform1f(d,s),o.uniform1f(p,n),o.uniform1f(h,y),o.drawArrays(o.TRIANGLE_STRIP,0,4),b=requestAnimationFrame(S)}b=requestAnimationFrame(S);const x=E=>{const k=t.getBoundingClientRect();m={x:(E.clientX-k.left)/k.width,y:1-(E.clientY-k.top)/k.height}},g=()=>{v=1},w=()=>{v=0};return t.addEventListener("pointermove",x),t.addEventListener("pointerenter",g),t.addEventListener("pointerleave",w),function(){t.removeEventListener("pointermove",x),t.removeEventListener("pointerenter",g),t.removeEventListener("pointerleave",w),cancelAnimationFrame(b),o.deleteProgram(a),o.deleteTexture(u)}}function Be(t,r=.35){const c=parseInt(t.replace("#",""),16),s=Math.min(255,(c>>16&255)+255*r),n=Math.min(255,(c>>8&255)+255*r),e=Math.min(255,(c&255)+255*r);return`rgb(${s|0},${n|0},${e|0})`}function De(t=".kx-gen-art",{cols:r=7,rows:c=6,density:s=.62,paperColor:n="rgba(241,240,236,.5)"}={}){const i=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(o=>Ge(o,r,c,s,n));return()=>i.forEach(o=>o())}function Ge(t,r,c,s,n){const e=t.getContext("2d"),i=L(),o=t.dataset.seed||t.id||"kinetic",a=t.dataset.hue||"#4f7cff",u=dt(mt(String(o))),l=Be(a);let f=0,d=0,p=[],h=!0,m=null;function v(){const x=Math.min(devicePixelRatio||1,2);if(f=t.offsetWidth,d=t.offsetHeight,!f||!d)return;t.width=f*x,t.height=d*x,e.setTransform(x,0,0,x,0,0);const g=f/r,w=d/c;p=[];for(let E=0;E<c;E++)for(let k=0;k<r;k++){const A=u();if(A<1-s)continue;const M=A>.93,T=!M&&A>.78,C=!M&&u()<.1&&k<r-1&&E<c-1;p.push({x:k*g,y:E*w,w:(C?2:1)*g,h:(C?2:1)*w,fill:M?n:T?l:a,phase:u()*Math.PI*2})}}function y(x){if(!(!f||!d)){e.clearRect(0,0,f,d);for(const g of p)e.globalAlpha=i?.85:.68+Math.sin(x/2200+g.phase)*.17,e.fillStyle=g.fill,e.fillRect(g.x,g.y,g.w,g.h);e.globalAlpha=1}}v(),y(0);const b=new IntersectionObserver(x=>{h=x[0].isIntersecting},{threshold:0});b.observe(t),i||(m=setInterval(()=>{h&&y(performance.now())},100));const S=new ResizeObserver(()=>{v(),y(performance.now())});return S.observe(t),()=>{m&&clearInterval(m),b.disconnect(),S.disconnect()}}function Ue(t=".kx-particles",{count:r=60,linkDistance:c=120,speed:s=.25,color:n="79,124,255",repelRadius:e=140}={}){const i=typeof t=="string"?document.querySelector(t):t;if(!i)return()=>{};const o=i.getContext("2d"),a=L();let u=0,l=0,f=Math.min(devicePixelRatio||1,2);function d(){u=i.offsetWidth,l=i.offsetHeight,i.width=u*f,i.height=l*f,o.setTransform(f,0,0,f,0,0)}d();const p=new ResizeObserver(d);p.observe(i);const h=Array.from({length:a?Math.round(r/3):r},()=>({x:Math.random()*u,y:Math.random()*l,vx:(Math.random()-.5)*s,vy:(Math.random()-.5)*s}));let m={x:-9999,y:-9999};const v=Y(()=>{}),y=S=>{const x=i.getBoundingClientRect();m={x:S.clientX-x.left,y:S.clientY-x.top}};i.addEventListener("pointermove",y),i.addEventListener("pointerleave",()=>{m={x:-9999,y:-9999}});const b=_((S,x)=>{o.clearRect(0,0,u,l);for(const g of h){const w=g.x-m.x,E=g.y-m.y,k=Math.hypot(w,E);if(k<e){const A=(1-k/e)*1.4;g.vx+=w/(k||1)*A*x*6,g.vy+=E/(k||1)*A*x*6}g.x+=g.vx,g.y+=g.vy,g.vx*=.98,g.vy*=.98,(g.x<0||g.x>u)&&(g.vx*=-1),(g.y<0||g.y>l)&&(g.vy*=-1),g.x=Math.max(0,Math.min(u,g.x)),g.y=Math.max(0,Math.min(l,g.y))}o.fillStyle=`rgba(${n},0.8)`;for(const g of h)o.beginPath(),o.arc(g.x,g.y,1.6,0,Math.PI*2),o.fill();for(let g=0;g<h.length;g++)for(let w=g+1;w<h.length;w++){const E=h[g],k=h[w],A=Math.hypot(E.x-k.x,E.y-k.y);A<c&&(o.strokeStyle=`rgba(${n},${(1-A/c)*.35})`,o.beginPath(),o.moveTo(E.x,E.y),o.lineTo(k.x,k.y),o.stroke())}});return function(){b(),v(),p.disconnect(),i.removeEventListener("pointermove",y)}}function He(t,{frames:r=[],scrollRoot:c=null,fit:s="cover"}={}){const n=typeof t=="string"?document.querySelector(t):t;if(!n||!r.length)return()=>{};const e=c||n.parentElement.parentElement||n.parentElement,i=n.getContext("2d");if(!i)return()=>{};const o=r.map(v=>{const y=new Image;return y.decoding="async",y.src=v,y});let a=-1;function u(){const v=e.getBoundingClientRect(),y=v.height-window.innerHeight;return y<=0?0:$(-v.top/y,0,1)}function l(){const v=Math.min(window.devicePixelRatio||1,2);n.width=Math.max(1,n.clientWidth*v),n.height=Math.max(1,n.clientHeight*v)}function f(v){const y=o[v];if(!y||!y.complete||!y.naturalWidth)return;const b=n.width,S=n.height,x=y.naturalWidth/y.naturalHeight,g=b/S;let w,E;s==="cover"==x>g?(E=S,w=S*x):(w=b,E=b/x),i.clearRect(0,0,b,S),i.drawImage(y,(b-w)/2,(S-E)/2,w,E)}function d(v){return $(Math.round(v*(r.length-1)),0,r.length-1)}l(),o[0].addEventListener("load",()=>{a===-1&&(a=0,f(0))},{once:!0});const p=L(),h=p?null:_(()=>{const v=d(u());v!==a&&(a=v,f(a))});p&&(a=d(.5),o[a]?f(a):o[a].addEventListener("load",()=>f(a),{once:!0}));const m=()=>{l(),f(a<0?0:a)};return window.addEventListener("resize",m),function(){h&&h(),window.removeEventListener("resize",m)}}function Xe({overlaySelector:t=".kx-transition-overlay",duration:r=600,midPoint:c=.5}={}){const s=document.querySelector(t),n=L();function e(i){return n||!s?(i(),Promise.resolve()):new Promise(o=>{s.classList.add("is-covering"),setTimeout(()=>{i(),s.classList.add("is-covered"),requestAnimationFrame(()=>{s.classList.remove("is-covering"),s.classList.remove("is-covered"),s.classList.add("is-revealing"),setTimeout(()=>{s.classList.remove("is-revealing"),o()},r*(1-c))})},r*c)})}return{runTransition:e,destroy:()=>{}}}function Ne(t=".kx-reveal-mask",{threshold:r=.2,direction:c="up"}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],n=L();if(s.forEach(i=>i.dataset.kxDirection=c),n)return s.forEach(i=>i.classList.add("in")),()=>{};const e=s.map(i=>z(i,()=>i.classList.add("in"),{threshold:r}));return()=>e.forEach(i=>i())}function ze(t=".kx-curtain",{delay:r=200,panelStagger:c=90,duration:s=900,onDone:n=()=>{}}={}){const e=typeof t=="string"?document.querySelector(t):t;if(!e){n();return}const i=[...e.querySelectorAll(".kx-curtain-panel")];if(L()){e.remove(),n();return}setTimeout(()=>{i.forEach((o,a)=>{setTimeout(()=>o.classList.add("is-open"),a*c)}),setTimeout(()=>{e.remove(),n()},c*i.length+s)},r)}function at(t,{duration:r=500,easing:c=F.inOutExpo||F.inOut,properties:s=["transform"]}={}){const n=t.getBoundingClientRect();return function(){const i=t.getBoundingClientRect();if(L())return Promise.resolve();const o=n.left-i.left,a=n.top-i.top,u=n.width/(i.width||1),l=n.height/(i.height||1);return t.style.transformOrigin="top left",t.style.transform=`translate(${o}px,${a}px) scale(${u},${l})`,t.style.transition="none",t.getBoundingClientRect(),new Promise(f=>{requestAnimationFrame(()=>{t.style.transition=s.map(p=>`${p} ${r}ms ${c}`).join(","),t.style.transform="";const d=()=>{t.style.transition="",t.removeEventListener("transitionend",d),f()};t.addEventListener("transitionend",d)})})}}function At(){return typeof document<"u"&&typeof document.startViewTransition=="function"}function Ye(t,{classNames:r}={}){if(L()||!At())return Promise.resolve(t());const c=r?[].concat(r):[];c.length&&document.documentElement.classList.add(...c);let s;try{s=document.startViewTransition(t)}catch{return Promise.resolve(t())}const n=s.finished.catch(()=>{});return c.length&&n.then(()=>document.documentElement.classList.remove(...c)),n}function We(t,r){if(!t)return()=>{};const c=t.style.viewTransitionName;return t.style.viewTransitionName=r,()=>{t.style.viewTransitionName=c||""}}function Ve(t,r,{itemSelector:c=null,duration:s=450}={}){if(L())return r(),Promise.resolve();if(typeof document.startViewTransition=="function"){let i;try{i=document.startViewTransition(()=>r())}catch{return r(),Promise.resolve()}return i.finished.catch(()=>{})}const e=(c?[...t.querySelectorAll(c)]:[]).map(i=>at(i,{duration:s}));return r(),e.forEach(i=>i()),Promise.resolve()}function Qe({countEl:t=null,tasks:r=[],minDuration:c=800,onProgress:s=()=>{},onDone:n=()=>{}}={}){const e=r.length||1;let i=0;const o=performance.now();function a(){i++;const l=Math.min(100,Math.round(i/e*100));t&&(t.textContent=String(l)),s(l)}(r.length?Promise.all(r.map(l=>Promise.resolve(l).then(a,a))):(a(),Promise.resolve())).then(()=>{const l=performance.now()-o,f=Math.max(0,c-l);setTimeout(n,f)})}function je(t){(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).forEach(c=>{const s=c.querySelector(".kx-skeleton"),n=c.querySelector(".kx-content");s&&(s.classList.add("is-done"),setTimeout(()=>s.remove(),350)),n&&(n.hidden=!1,requestAnimationFrame(()=>n.classList.add("in")))})}function Ke(t=".kx-read-progress",{target:r=null}={}){return bt(t,{target:r})}function Je(t=".kx-tilt",{max:r=12,scale:c=1.02,glare:s=!0,lambda:n=14}={}){if(!B()||L())return()=>{};const i=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(o=>{const a=o.querySelector(".kx-tilt-inner")||o,u=s?o.querySelector(".kx-tilt-glare"):null;let l=0,f=0,d=0,p=0,h=!1,m=null;const v=()=>{h=!0,m=o.getBoundingClientRect()},y=x=>{m||(m=o.getBoundingClientRect());const g=(x.clientX-m.left)/m.width,w=(x.clientY-m.top)/m.height;p=(g-.5)*r*2,d=-(w-.5)*r*2,u&&(u.style.background=`radial-gradient(circle at ${g*100}% ${w*100}%, rgba(255,255,255,.25), transparent 60%)`)},b=()=>{h=!1,d=0,p=0};o.addEventListener("pointerenter",v),o.addEventListener("pointermove",y),o.addEventListener("pointerleave",b),window.addEventListener("resize",()=>{m=null});const S=_((x,g)=>{l=R(l,d,n,g),f=R(f,p,n,g);const w=h?c:1;a.style.transform=`rotateX(${l.toFixed(2)}deg) rotateY(${f.toFixed(2)}deg) scale(${w})`});return()=>{o.removeEventListener("pointerenter",v),o.removeEventListener("pointermove",y),o.removeEventListener("pointerleave",b),S()}});return()=>i.forEach(o=>o())}function Ze(t=".kx-glow-card",{size:r=180}={}){const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(n=>{const e=i=>{const o=n.getBoundingClientRect();n.style.setProperty("--kx-glow-x",`${i.clientX-o.left}px`),n.style.setProperty("--kx-glow-y",`${i.clientY-o.top}px`)};return n.style.setProperty("--kx-glow-size",`${r}px`),n.addEventListener("pointermove",e),()=>n.removeEventListener("pointermove",e)});return()=>s.forEach(n=>n())}function Oe(t=".kx-flip",{trigger:r="click"}={}){const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(n=>{if(r==="hover"){const o=()=>n.classList.add("is-flipped"),a=()=>n.classList.remove("is-flipped");return n.addEventListener("mouseenter",o),n.addEventListener("mouseleave",a),()=>{n.removeEventListener("mouseenter",o),n.removeEventListener("mouseleave",a)}}const e=()=>n.classList.toggle("is-flipped");n.addEventListener("click",e),n.setAttribute("role",n.getAttribute("role")||"button"),n.setAttribute("tabindex",n.getAttribute("tabindex")||"0");const i=o=>{(o.key==="Enter"||o.key===" ")&&(o.preventDefault(),e())};return n.addEventListener("keydown",i),()=>{n.removeEventListener("click",e),n.removeEventListener("keydown",i)}});return()=>s.forEach(n=>n())}function tn(t=".kx-magnetic-card",{pull:r=.15,tilt:c=8,lambda:s=12}={}){if(!B()||L())return()=>{};const e=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(i=>{let o=null,a=0,u=0,l=0,f=0,d=0,p=0,h=0,m=0;const v=()=>{o=i.getBoundingClientRect()},y=x=>{o||(o=i.getBoundingClientRect());const g=(x.clientX-o.left)/o.width-.5,w=(x.clientY-o.top)/o.height-.5;a=g*o.width*r,u=w*o.height*r,f=g*c*2,l=-w*c*2},b=()=>{o=null,a=0,u=0,l=0,f=0};i.addEventListener("mouseenter",v),i.addEventListener("mousemove",y),i.addEventListener("mouseleave",b);const S=_((x,g)=>{d=R(d,a,s,g),p=R(p,u,s,g),h=R(h,l,s,g),m=R(m,f,s,g),i.style.transform=`translate(${d.toFixed(2)}px,${p.toFixed(2)}px) rotateX(${h.toFixed(2)}deg) rotateY(${m.toFixed(2)}deg)`});return()=>{i.removeEventListener("mouseenter",v),i.removeEventListener("mousemove",y),i.removeEventListener("mouseleave",b),S()}});return()=>e.forEach(i=>i())}function en(t,{cardSelector:r=".kx-stack-card",offset:c=24,scaleStep:s=.035,minScale:n=.85}={}){const e=typeof t=="string"?document.querySelector(t):t;if(!e)return()=>{};const i=[...e.querySelectorAll(r)];if(!i.length)return()=>{};if(i.forEach((a,u)=>{a.style.top=`${c*u}px`,a.style.zIndex=String(u+1),a.style.willChange="transform, opacity"}),L())return()=>{i.forEach(a=>{a.style.top=a.style.zIndex=a.style.willChange=""})};const o=_(()=>{for(let a=0;a<i.length-1;a++){const u=i[a],l=i[a+1],f=u.getBoundingClientRect().top,d=l.getBoundingClientRect(),p=d.top-f,h=$(1-p/Math.max(1,d.height),0,1),m=i.length-a,v=Math.max(n,1-h*s*m);u.style.transform=`scale(${v})`,u.style.opacity=String(1-h*.35)}});return function(){o(),i.forEach(u=>{u.style.top=u.style.zIndex=u.style.transform=u.style.opacity=u.style.willChange=""})}}function nn(t=".kx-stagger",{step:r=60,childSelector:c=":scope > *",threshold:s=.15}={}){const n=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],e=L(),i=n.map(o=>{[...o.querySelectorAll(c)].forEach((l,f)=>{l.classList.add("kx-stagger-item"),l.style.setProperty("--kx-stagger-delay",e?"0ms":`${f*r}ms`)});const u=()=>o.classList.add("in");return e?(u(),()=>{}):z(o,u,{threshold:s})});return()=>i.forEach(o=>o())}function on(t,r=":scope > *",c={}){if(L())return()=>{};const n=[...t.querySelectorAll(r)].map(e=>at(e,c));return()=>n.forEach(e=>e())}function rn(t=".kx-marquee-grid",{speed:r=30,alternate:c=!0,rowSelector:s=".kx-marquee-row"}={}){if(L())return()=>{};const n=typeof t=="string"?document.querySelector(t):t;if(!n)return()=>{};const e=[...n.querySelectorAll(s)].map((o,a)=>{const u=o.querySelector(".kx-marquee-track")||o.firstElementChild;if(u&&!u.dataset.kxDup){u.dataset.kxDup="1";const l=u.cloneNode(!0);l.setAttribute("aria-hidden","true"),o.appendChild(l),o.style.display="flex",o.style.overflow="hidden",u.style.flex="0 0 auto",u.style.whiteSpace="nowrap",l.style.flex="0 0 auto",l.style.whiteSpace="nowrap"}return{row:o,track:u,x:0,dir:c&&a%2?1:-1}});return _((o,a)=>{for(const u of e){if(!u.track)continue;const l=u.track.offsetWidth||1;u.x+=u.dir*r*a,Math.abs(u.x)>=l&&(u.x=u.x%l),u.row.style.transform=`translateX(${u.x}px)`}})}function sn(t=".kx-magnetic-nav",{linkSelector:r=".kx-nav-link",pillSelector:c=".kx-nav-pill"}={}){const s=typeof t=="string"?document.querySelector(t):t;if(!s)return()=>{};const n=s.querySelector(c),e=[...s.querySelectorAll(r)];if(!n||!e.length)return()=>{};const i=L();function o(d,p=!0){const h=s.getBoundingClientRect(),m=d.getBoundingClientRect();n.style.transition=p&&!i?`transform 420ms ${F.outBack}, width 420ms ${F.out}`:"none",n.style.width=`${m.width}px`,n.style.transform=`translateX(${m.left-h.left}px)`}const a=s.querySelector(`${r}.is-active`)||e[0];requestAnimationFrame(()=>o(a,!1));const u=e.map(d=>{const p=()=>o(d),h=()=>o(d);return d.addEventListener("mouseenter",p),d.addEventListener("focus",h),()=>{d.removeEventListener("mouseenter",p),d.removeEventListener("focus",h)}}),l=()=>o(s.querySelector(`${r}.is-active`)||e[0]);s.addEventListener("mouseleave",l);const f=new ResizeObserver(()=>o(s.querySelector(`${r}.is-active`)||e[0],!1));return f.observe(s),()=>{u.forEach(d=>d()),s.removeEventListener("mouseleave",l),f.disconnect()}}function cn({triggerSelector:t=".kx-menu-trigger",overlaySelector:r=".kx-menu-overlay",closeOnLinkClick:c=!0,onOpen:s=()=>{},onClose:n=()=>{}}={}){const e=document.querySelector(t),i=document.querySelector(r);if(!e||!i)return()=>{};let o=!1;function a(d){o=d,e.classList.toggle("is-open",o),i.classList.toggle("is-open",o),e.setAttribute("aria-expanded",String(o)),i.setAttribute("aria-hidden",String(!o)),document.body.style.overflow=o?"hidden":"",(o?s:n)()}const u=()=>a(!o);e.addEventListener("click",u);let l;c&&(l=d=>{d.target.closest("a")&&a(!1)},i.addEventListener("click",l));const f=d=>{d.key==="Escape"&&o&&a(!1)};return document.addEventListener("keydown",f),function(){e.removeEventListener("click",u),l&&i.removeEventListener("click",l),document.removeEventListener("keydown",f),document.body.style.overflow=""}}function an(t=".site-header",{threshold:r=8,revealAtTop:c=40}={}){const s=typeof t=="string"?document.querySelector(t):t;if(!s)return()=>{};let n=window.scrollY;return _(()=>{const i=window.scrollY,o=i-n;i<=c?s.classList.remove("kx-header-hidden"):o>r?s.classList.add("kx-header-hidden"):o<-r&&s.classList.remove("kx-header-hidden"),n=i})}var ut=!1;function un(){if(ut||document.getElementById("kx-goo")){ut=!0;return}const t=document.createElementNS("http://www.w3.org/2000/svg","svg");t.setAttribute("width","0"),t.setAttribute("height","0"),t.style.position="absolute",t.innerHTML='<filter id="kx-goo"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"/></filter>',document.body.appendChild(t),ut=!0}function ln(t,{linkSelector:r="[data-gooey]",leadSelector:c=".kx-gooey-lead",trailSelector:s=".kx-gooey-trail",damping:n=14}={}){const e=typeof t=="string"?document.querySelector(t):t;if(!e)return()=>{};const i=[...e.querySelectorAll(r)],o=e.querySelector(c),a=e.querySelector(s);if(!i.length||!o||!a)return()=>{};un();let u=0,l=0,f=0,d=0,p=0,h=0,m=0,v=0,y=!1;function b(M){const T=M.getBoundingClientRect(),C=e.getBoundingClientRect();return{x:T.left-C.left,y:T.top-C.top,w:T.width,h:T.height}}function S(M){if(!M)return;const T=b(M);u=T.x,l=T.y,f=T.w,d=T.h,y||(p=u,h=l,m=f,v=d,y=!0)}function x(M,T,C,D,P){M.style.transform=`translate(${T}px,${C}px)`,M.style.width=`${D}px`,M.style.height=`${P}px`}const g=()=>e.querySelector(`${r}.is-active`)||i[0];S(g()),x(o,u,l,f,d),x(a,u,l,f,d);const w=M=>S(M.currentTarget),E=()=>S(g());i.forEach(M=>{M.addEventListener("pointerenter",w),M.addEventListener("focus",w)}),e.addEventListener("pointerleave",E);const k=L(),A=k?null:_((M,T)=>{x(o,u,l,f,d);const C=Math.max(4,n);p=R(p,u,C,T||1/60),h=R(h,l,C,T||1/60),m=R(m,f,C,T||1/60),v=R(v,d,C,T||1/60),x(a,p,h,m,v)});return k&&(x(o,u,l,f,d),x(a,u,l,f,d)),function(){A&&A(),i.forEach(T=>{T.removeEventListener("pointerenter",w),T.removeEventListener("focus",w)}),e.removeEventListener("pointerleave",E)}}function fn(t=".kx-magnetic-btn",{pull:r=.4,innerPull:c=.6}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],n=ct(s,{pull:r,releaseEase:F.outBack,releaseDuration:600}),e=s.map(o=>o.querySelector(".kx-magnetic-btn-inner")).filter(Boolean),i=e.length?ct(e,{pull:c,releaseEase:F.outBack,releaseDuration:600}):()=>{};return()=>{n(),i()}}function dn(t=".kx-ripple-btn",{color:r="rgba(255,255,255,.45)",duration:c=600}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t],n=L(),e=s.map(i=>{const o=a=>{if(n)return;const u=i.getBoundingClientRect(),l=Math.max(u.width,u.height)*2,f=document.createElement("span");Object.assign(f.style,{position:"absolute",left:`${a.clientX-u.left-l/2}px`,top:`${a.clientY-u.top-l/2}px`,width:`${l}px`,height:`${l}px`,borderRadius:"50%",background:r,pointerEvents:"none",transform:"scale(0)",opacity:"1",transition:`transform ${c}ms cubic-bezier(.25,1,.5,1), opacity ${c}ms ease-out`}),i.appendChild(f),requestAnimationFrame(()=>{f.style.transform="scale(1)",f.style.opacity="0"}),setTimeout(()=>f.remove(),c+50)};return i.addEventListener("pointerdown",o),()=>i.removeEventListener("pointerdown",o)});return()=>e.forEach(i=>i())}function mn(t=".kx-draw-btn",{rectSelector:r=".kx-draw-rect",svgSelector:c=".kx-draw-svg"}={}){const s=typeof t=="string"?[...document.querySelectorAll(t)]:[...t];function n(i){const o=i.querySelector(r),a=i.querySelector(c);if(!o||!a)return;const u=i.offsetWidth,l=i.offsetHeight;a.setAttribute("width",u),a.setAttribute("height",l),a.setAttribute("viewBox",`0 0 ${u} ${l}`),o.setAttribute("x",1),o.setAttribute("y",1),o.setAttribute("width",Math.max(0,u-2)),o.setAttribute("height",Math.max(0,l-2));const f=2*(u+l);o.style.strokeDasharray=String(f),o.style.strokeDashoffset=String(f)}s.forEach(n);const e=new ResizeObserver(i=>i.forEach(o=>n(o.target)));return s.forEach(i=>e.observe(i)),()=>e.disconnect()}function pn(t=".kx-aurora",{colors:r=["#4f7cff","#ff5f7e","#2be3b0"]}={}){const c=typeof t=="string"?document.querySelector(t):t;return c?([...c.children].forEach((n,e)=>{n.style.setProperty("--kx-aurora-color",r[e%r.length])}),()=>{}):()=>{}}function hn(t=".kx-dot-grid",{gap:r=34,radius:c=1.4,influence:s=140,maxScale:n=2.4,color:e="255,255,255"}={}){const i=typeof t=="string"?document.querySelector(t):t;if(!i)return()=>{};const o=i.getContext("2d"),a=L();let u=0,l=0,f=Math.min(devicePixelRatio||1,2),d=[];function p(){u=i.offsetWidth,l=i.offsetHeight,i.width=u*f,i.height=l*f,o.setTransform(f,0,0,f,0,0),d=[];for(let x=r/2;x<l;x+=r)for(let g=r/2;g<u;g+=r)d.push({x:g,y:x})}p();const h=new ResizeObserver(p);h.observe(i);let m={x:-9999,y:-9999};const v=x=>{const g=i.getBoundingClientRect();m={x:x.clientX-g.left,y:x.clientY-g.top}},y=()=>{m={x:-9999,y:-9999}};i.addEventListener("pointermove",v),i.addEventListener("pointerleave",y);function b(){o.clearRect(0,0,u,l),o.fillStyle=`rgba(${e},1)`;for(const x of d){const g=Math.hypot(x.x-m.x,x.y-m.y),w=Math.max(0,1-g/s),E=1+w*(n-1);o.globalAlpha=.25+w*.75,o.beginPath(),o.arc(x.x,x.y,c*E,0,Math.PI*2),o.fill()}o.globalAlpha=1}if(a)return b(),()=>h.disconnect();const S=_(b);return()=>{S(),h.disconnect(),i.removeEventListener("pointermove",v),i.removeEventListener("pointerleave",y)}}function vn(t=".kx-noise-bg",{scale:r=.006,speed:c=15e-5,resolution:s=3,color:n="255,255,255"}={}){const e=typeof t=="string"?document.querySelector(t):t;if(!e)return()=>{};const i=e.getContext("2d"),o=L(),a=st(7);let u=0,l=0,f=0,d=0;function p(){u=e.offsetWidth,l=e.offsetHeight,f=Math.ceil(u/s),d=Math.ceil(l/s),e.width=f,e.height=d,e.style.imageRendering="pixelated",e.style.width=`${u}px`,e.style.height=`${l}px`}p();const h=new ResizeObserver(p);h.observe(e);const m=()=>i.createImageData(f,d);function v(S){const x=m(),[g,w,E]=n.split(",").map(Number);for(let k=0;k<d;k++)for(let A=0;A<f;A++){const M=(a(A*r,k*r+S)+1)/2,T=(k*f+A)*4;x.data[T]=g,x.data[T+1]=w,x.data[T+2]=E,x.data[T+3]=Math.round(M*60)}i.putImageData(x,0,0)}if(v(0),o)return()=>h.disconnect();let y;function b(S){v(S*c),y=requestAnimationFrame(b)}return y=requestAnimationFrame(b),()=>{cancelAnimationFrame(y),h.disconnect()}}function gn(t=".kx-field",{inputSelector:r=".kx-field-input"}={}){const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(n=>{const e=n.querySelector(r)||n,i=()=>n.classList.toggle("has-value",!!e.value);return i(),e.addEventListener("input",i),e.addEventListener("blur",i),e.addEventListener("focus",()=>n.classList.add("is-focused")),e.addEventListener("blur",()=>n.classList.remove("is-focused")),()=>{e.removeEventListener("input",i),e.removeEventListener("blur",i)}});return()=>s.forEach(n=>n())}function yn(t=".kx-checkbox",{inputSelector:r=".kx-checkbox-input"}={}){const s=(typeof t=="string"?[...document.querySelectorAll(t)]:[...t]).map(n=>{const e=n.querySelector(r);if(!e)return()=>{};const i=()=>n.classList.toggle("is-checked",e.checked);return i(),e.addEventListener("change",i),()=>e.removeEventListener("change",i)});return()=>s.forEach(n=>n())}return It(lt)})();
+</script>
+<script>/* Kinetic showcase — effect registry. 58 entries, one per module. */
+
+/* Generates a rotating-hexagon frame sequence as data-URLs, entirely
+   client-side — lets the imageSequenceScrub live demo (below the chapters)
+   run with no real photo assets. Exported so the full-height demo block in
+   main.js can reuse it too. */
+function genRotationFrames(n, colorA, colorB){
+  var size = 480, frames = [];
+  var c = document.createElement('canvas'); c.width = size; c.height = size;
+  var ctx = c.getContext('2d');
+  for (var i = 0; i < n; i++){
+    var angle = (i / n) * Math.PI * 2;
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.translate(size/2, size/2);
+    ctx.rotate(angle);
+    var grad = ctx.createLinearGradient(-size/2, -size/2, size/2, size/2);
+    grad.addColorStop(0, colorA); grad.addColorStop(1, colorB);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    var r = size * 0.32;
+    for (var p = 0; p < 6; p++){
+      var a = (p / 6) * Math.PI * 2;
+      var x = Math.cos(a) * r, y = Math.sin(a) * r;
+      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    frames.push(c.toDataURL('image/png'));
+  }
+  return frames;
+}
+
+const EFFECTS = (function(){
+  function chips(n, cls){ var s=''; for(var i=1;i<=n;i++) s += '<div class="'+(cls||'chip')+'">'+i+'</div>'; return s; }
+  function genArtCells(){
+    var seeds = [
+      { seed:'alpha', hue:'#4f6bff' }, { seed:'bravo', hue:'#ff5f7e' },
+      { seed:'charlie', hue:'#2be3b0' }, { seed:'delta', hue:'#f3f1ea' }
+    ];
+    return '<div class="gen-art-grid" data-role="genart-grid">' + seeds.map(function(s){
+      return '<canvas data-seed="'+s.seed+'" data-hue="'+s.hue+'"></canvas>';
+    }).join('') + '</div>';
+  }
+
+  return [
+    /* ---------------- 01 · Cursor & Pointer ---------------- */
+    { id:'customCursor', cat:'cursor', file:'effects/cursor/customCursor.js', title:'Custom Cursor',
+      desc:'A ring that lerps toward the pointer, expands over links, and shows a contextual label via data-cursor-label.',
+      note:'Already running — move your mouse anywhere on this page.',
+      code:"import { initCustomCursor } from 'kinetic/effects/cursor/customCursor';\nconst destroy = initCustomCursor({ speed: 0.2 });",
+      stageHTML:'<span class="eyebrow">See the cursor ↑</span>' },
+
+    { id:'magnetic', cat:'cursor', file:'effects/cursor/magnetic.js', title:'Magnetic Elements',
+      desc:'Elements gently pull toward the cursor on hover, then spring back with an overshoot ease.',
+      code:"import { initMagnetic } from 'kinetic/effects/cursor/magnetic';\nconst destroy = initMagnetic('.magnetic', { pull: 0.3 });",
+      stageHTML:'<button class="demo-btn" data-role="magnetic">Hover me</button>',
+      init:function(stage,K){ return K.initMagnetic(stage.querySelectorAll('[data-role="magnetic"]'), { pull:.35 }); } },
+
+    { id:'magneticText', cat:'cursor', file:'effects/cursor/magneticText.js', title:'Magnetic Text',
+      desc:'Per-character magnetism — each letter nudges away from the cursor individually, proportional to distance.',
+      code:"import { initMagneticText } from 'kinetic/effects/cursor/magneticText';\nconst destroy = initMagneticText('.magnetic-text', { radius: 120, strength: 18 });",
+      stageHTML:'<span class="magnetic-text-demo" data-role="magtext">KINETIC</span>',
+      init:function(stage,K){ return K.initMagneticText(stage.querySelectorAll('[data-role="magtext"]'), { radius:90, strength:14 }); } },
+
+    { id:'cursorTrail', cat:'cursor', file:'effects/cursor/cursorTrail.js', title:'Cursor Trail',
+      desc:'A short chain of dots that follow the cursor with staggered lag, reading as one elastic ribbon.',
+      code:"import { initCursorTrail } from 'kinetic/effects/cursor/cursorTrail';\nconst destroy = initCursorTrail({ count: 6 });",
+      stageHTML:'<button class="demo-btn ghost" data-role="trail-toggle">Enable trail (site-wide)</button>',
+      init:function(stage,K){
+        var off=null, btn=stage.querySelector('[data-role="trail-toggle"]');
+        btn.addEventListener('click', function(){
+          if(off){ off(); off=null; btn.textContent='Enable trail (site-wide)'; }
+          else { off=K.initCursorTrail({ count:6 }); btn.textContent='Disable trail'; }
+        });
+      } },
+
+    { id:'spotlightHover', cat:'cursor', file:'effects/cursor/spotlightHover.js', title:'Spotlight Hover',
+      desc:'A soft radial-gradient flashlight that follows the cursor inside a container.',
+      code:"import { initSpotlightHover } from 'kinetic/effects/cursor/spotlightHover';\nconst destroy = initSpotlightHover('.spotlight-card', { radius: 260 });",
+      stageHTML:'<div class="kx-spotlight-demo" data-role="spotlight" style="width:100%;height:100%;"><span class="eyebrow">Move over me</span></div>',
+      init:function(stage,K){ return K.initSpotlightHover(stage.querySelectorAll('[data-role="spotlight"]'), { radius:140 }); } },
+
+    { id:'blobCursor', cat:'cursor', file:'effects/cursor/blobCursor.js', title:'Blob Cursor',
+      desc:'A gooey, metaball-style cursor — a short trail of circles chases the pointer and melts into one liquid blob via an SVG goo filter.',
+      code:"import { initBlobCursor } from 'kinetic/effects/cursor/blobCursor';\nconst destroy = initBlobCursor({ count: 5, size: 22, color: '#4f6bff' });",
+      stageHTML:'<button class="demo-btn ghost" data-role="blob-toggle">Enable blob cursor (site-wide)</button>',
+      init:function(stage,K){
+        var off=null, btn=stage.querySelector('[data-role="blob-toggle"]');
+        btn.addEventListener('click', function(){
+          if(off){ off(); off=null; btn.textContent='Enable blob cursor (site-wide)'; }
+          else { off=K.initBlobCursor({ count:5, size:20, color:'#4f6bff' }); btn.textContent='Disable blob cursor'; }
+        });
+      } },
+
+    /* ---------------- 02 · Text ---------------- */
+    { id:'splitText', cat:'text', file:'effects/text/splitText.js', title:'Split Text Reveal',
+      desc:'Splits text into per-character spans that rise into place with a staggered delay.',
+      note:'The hero title above uses this exact function.',
+      code:"import { initSplitText } from 'kinetic/effects/text/splitText';\nconst destroy = initSplitText('.hero-title', { step: 0.026 });",
+      stageHTML:'<span class="kx-split in" style="font-weight:800;font-size:22px;" data-role="split-replay">Awwwards</span>',
+      init:function(stage,K){
+        var el = stage.querySelector('[data-role="split-replay"]');
+        stage.addEventListener('mouseenter', function(){
+          el.classList.remove('in');
+          K.initSplitText([el], { step:.03 }); // triggerOnScroll (default true) re-adds .in on its own via IntersectionObserver, giving a real frame gap to animate from
+        });
+      } },
+
+    { id:'glitchText', cat:'text', file:'effects/text/glitchText.js', title:'Glitch Text',
+      desc:'Short RGB-split glitch bursts on hover using CSS clip-path slices — no canvas needed.',
+      code:"import { initGlitchText } from 'kinetic/effects/text/glitchText';\nconst destroy = initGlitchText('.glitch', { trigger: 'hover' });",
+      stageHTML:'<span class="glitch-demo" data-text="GLITCH" data-role="glitch">GLITCH</span>',
+      init:function(stage,K){ return K.initGlitchText(stage.querySelectorAll('[data-role="glitch"]'), { trigger:'hover' }); } },
+
+    { id:'scrambleText', cat:'text', file:'effects/text/scrambleText.js', title:'Scramble / Decode Text',
+      desc:'Characters cycle through random glyphs before settling — a terminal-style decrypt reveal.',
+      code:"import { initScrambleText } from 'kinetic/effects/text/scrambleText';\nconst destroy = initScrambleText('.scramble-on-hover');",
+      stageHTML:'<span style="font-family:var(--mono);font-size:17px;" data-role="scramble">DECODE ME</span>',
+      init:function(stage,K){ return K.initScrambleText(stage.querySelectorAll('[data-role="scramble"]')); } },
+
+    { id:'marquee', cat:'text', file:'effects/text/marquee.js', title:'Marquee / Ticker',
+      desc:'An infinite horizontal ticker built by duplicating the content once — no per-frame cost at rest.',
+      code:"import { initMarquee } from 'kinetic/effects/text/marquee';\nconst destroy = initMarquee('.marquee', { speed: 40, hoverSlow: true });",
+      stageHTML:'<div class="mini-marquee" data-role="mini-marquee"><div class="mini-marquee-track">Design · Motion · Code · </div></div>',
+      init:function(stage,K){ return K.initMarquee(stage.querySelectorAll('[data-role="mini-marquee"]'), { speed:26 }); } },
+
+    { id:'counter', cat:'text', file:'effects/text/counter.js', title:'Animated Counter',
+      desc:'Counts up with an eased curve when it scrolls into view — reads as an arrival, not a slot machine.',
+      code:"<span class=\"counter\" data-to=\"248\" data-suffix=\"+\">0</span>\nimport { initCounters } from 'kinetic/effects/text/counter';\nconst destroy = initCounters('.counter', { duration: 1400 });",
+      stageHTML:'<div class="counter-demo"><span data-role="counter-demo" data-to="248" data-suffix="+">0</span></div>',
+      init:function(stage,K){ return K.initCounters(stage.querySelectorAll('[data-role="counter-demo"]')); } },
+
+    { id:'typewriter', cat:'text', file:'effects/text/typewriter.js', title:'Typewriter',
+      desc:'Types out rotating strings character by character — the classic rotating-tagline effect.',
+      code:"import { initTypewriter } from 'kinetic/effects/text/typewriter';\nconst destroy = initTypewriter('.role', {\n  words: ['Product Designer', 'UX Engineer', 'Frontend Craftsman'],\n  loop: true\n});",
+      stageHTML:'<span class="typewriter-demo" data-role="typewriter"></span>',
+      init:function(stage,K){ return K.initTypewriter(stage.querySelectorAll('[data-role="typewriter"]'), { words:['Awwwards-worthy','Handmade','Reduced-motion safe'], loop:true }); } },
+
+    { id:'textMaskScrollFill', cat:'text', file:'effects/text/textMaskScrollFill.js', title:'Scroll-Fill Text',
+      desc:'Text fills with color as the page scrolls past it — driven by one shared scroll listener.',
+      note:'Drag to preview — on a real page this is driven by scroll position.',
+      code:"<p class=\"fill-text\" data-kx-fill>\n  <span class=\"base\">Design is how it works.</span>\n  <span class=\"fill\" aria-hidden=\"true\">Design is how it works.</span>\n</p>\nimport { initTextMaskScrollFill } from 'kinetic/effects/text/textMaskScrollFill';\nconst destroy = initTextMaskScrollFill('[data-kx-fill]');",
+      stageHTML:'<div style="width:100%;"><p class="fill-text-demo" data-role="filltext"><span class="base">Design is how it works.</span><span class="fill">Design is how it works.</span></p><input type="range" class="fill-range" min="0" max="100" value="40" data-role="fillrange"></div>',
+      init:function(stage){
+        var el=stage.querySelector('[data-role="filltext"]'), range=stage.querySelector('[data-role="fillrange"]');
+        el.style.setProperty('--kx-fill', range.value+'%');
+        range.addEventListener('input', function(){ el.style.setProperty('--kx-fill', range.value+'%'); });
+      } },
+
+    { id:'kineticScrollType', cat:'text', file:'effects/text/kineticScrollType.js', title:'Kinetic Scroll Type',
+      desc:'Splits text into characters and scrubs their opacity/blur live against scroll position — a continuous read, not a one-shot reveal.',
+      note:'Scroll this page ↕ — this exact card scrubs as it passes through view.',
+      code:"import { initKineticScrollType } from 'kinetic/effects/text/kineticScrollType';\nconst destroy = initKineticScrollType('.scroll-type');",
+      stageHTML:'<p class="scroll-type-demo" data-role="scrolltype">Design is how it works, not just how it looks.</p>',
+      init:function(stage,K){ return K.initKineticScrollType(stage.querySelectorAll('[data-role="scrolltype"]'), { startVh:1.0, endVh:0.55 }); } },
+
+    /* ---------------- 03 · Scroll ---------------- */
+    { id:'scrollReveal', cat:'scroll', file:'effects/scroll/scrollReveal.js', title:'Scroll Reveal',
+      desc:'Adds .in to any .kx-reveal element once it crosses into the viewport — one shared observer for the page.',
+      note:'You are seeing it — every section and card on this page reveals this way.',
+      code:"import { initScrollReveal } from 'kinetic/effects/scroll/scrollReveal';\nconst destroy = initScrollReveal(); // observes every .kx-reveal on the page",
+      stageHTML:'<span class="eyebrow">Scroll this page ↕</span>' },
+
+    { id:'parallax', cat:'scroll', file:'effects/scroll/parallax.js', title:'Parallax',
+      desc:'Translates elements at a fraction of scroll speed via data-kx-speed, for depth.',
+      code:"<img data-kx-parallax data-kx-speed=\"0.4\" src=\"...\">\nimport { initParallax } from 'kinetic/effects/scroll/parallax';\nconst destroy = initParallax('[data-kx-parallax]');",
+      stageHTML:'<div class="parallax-demo"><span data-kx-parallax data-kx-speed="0.5" style="width:70px;height:70px;background:var(--cobalt);top:20%;left:20%;"></span><span data-kx-parallax data-kx-speed="0.2" style="width:44px;height:44px;background:var(--coral);top:50%;left:60%;"></span></div>',
+      init:function(stage,K){ return K.initParallax(stage.querySelectorAll('[data-kx-parallax]')); } },
+
+    { id:'scrollProgress', cat:'scroll', file:'effects/scroll/scrollProgress.js', title:'Scroll Progress',
+      desc:'Drives a --kx-progress CSS variable from scroll position — wire it to a bar, a ring, anything in CSS.',
+      note:'The thin bar at the very top of this page is this exact function.',
+      code:"import { initScrollProgress } from 'kinetic/effects/scroll/scrollProgress';\nconst destroy = initScrollProgress('.progress-bar');",
+      stageHTML:'<span class="eyebrow">Look at the top of the page ↑</span>' },
+
+    { id:'smoothScroll', cat:'scroll', file:'effects/scroll/smoothScroll.js', title:'Eased Smooth Scroll',
+      desc:'An easeOutExpo scroll-to, for anchor links and back-to-top — replaces the native scroll curve.',
+      code:"import { scrollToHash } from 'kinetic/effects/scroll/smoothScroll';\nlink.addEventListener('click', e => {\n  e.preventDefault();\n  scrollToHash(link.getAttribute('href'));\n});",
+      stageHTML:'<button class="demo-btn" data-role="smooth-scroll-btn">Scroll to footer</button>',
+      init:function(stage,K){ stage.querySelector('[data-role="smooth-scroll-btn"]').addEventListener('click', function(){ K.smoothScrollTo(document.body.scrollHeight, 1100); }); } },
+
+    { id:'pinSection', cat:'scroll', file:'effects/scroll/pinSection.js', title:'Pin Section',
+      desc:'Pins a section via position:sticky for the duration of a taller container, reporting 0-1 progress.',
+      note:'Full-size live demo below the chapters ↓',
+      code:"import { initPinSection } from 'kinetic/effects/scroll/pinSection';\nconst destroy = initPinSection('.pin-outer', {\n  onProgress: p => { rail.style.transform = 'translateX(' + (-p*100) + '%)'; }\n});",
+      stageHTML:'<span class="eyebrow">See the full demo below ↓</span>' },
+
+    { id:'horizontalScroll', cat:'scroll', file:'effects/scroll/horizontalScroll.js', title:'Horizontal Scroll',
+      desc:'Converts vertical scroll through a pinned section into horizontal track motion — a sideways gallery.',
+      note:'Full-size live demo below the chapters ↓',
+      code:"import { initHorizontalScroll } from 'kinetic/effects/scroll/horizontalScroll';\nconst destroy = initHorizontalScroll('.hscroll-outer');",
+      stageHTML:'<span class="eyebrow">See the full demo below ↓</span>' },
+
+    { id:'scrollSnapSections', cat:'scroll', file:'effects/scroll/scrollSnapSections.js', title:'Scroll Snap + Dot Nav',
+      desc:'A thin layer over native CSS scroll-snap: keyboard navigation plus a synced dot nav.',
+      code:"import { initScrollSnapSections } from 'kinetic/effects/scroll/scrollSnapSections';\nconst destroy = initScrollSnapSections('.snap-container', { dotNav: '.snap-dots' });",
+      stageHTML:'<div class="snap-demo" data-role="snap-container"><section>One</section><section>Two</section><section>Three</section></div>',
+      init:function(stage,K){ return K.initScrollSnapSections(stage.querySelector('[data-role="snap-container"]'), { sectionSelector:'section' }); } },
+
+    { id:'scrollTimelineReveal', cat:'scroll', file:'effects/scroll/scrollTimelineReveal.js', title:'Scroll-Timeline Reveal',
+      desc:'A reveal driven by native CSS animation-timeline: view() — scrubbed live by scroll position on the compositor, not played once via IntersectionObserver.',
+      note:'Scroll this card through the viewport to see it scrub in both directions.',
+      code:"<p class=\"kx-timeline-reveal\">...</p>\nimport { initScrollTimelineReveal } from 'kinetic/effects/scroll/scrollTimelineReveal';\nconst destroy = initScrollTimelineReveal('.kx-timeline-reveal');",
+      stageHTML:'<div class="kx-timeline-reveal" data-role="tl-demo" style="font-family:var(--mono);font-size:14px;">Scrubbed, not switched.</div>',
+      init:function(stage,K){ return K.initScrollTimelineReveal(stage.querySelectorAll('[data-role="tl-demo"]')); } },
+
+    /* ---------------- 04 · WebGL & Canvas ---------------- */
+    { id:'rippleDistort', cat:'webgl', file:'effects/webgl/rippleDistort.js', title:'Ripple Distort — flagship',
+      desc:"Real WebGL water-ripple that follows the cursor's path across an image, with specular highlight and decay.",
+      code:"<div class=\"ripple-wrap\">\n  <canvas class=\"kx-ripple-source\"></canvas>\n  <canvas class=\"kx-ripple-canvas\"></canvas>\n</div>\nimport { initRippleDistort } from 'kinetic/effects/webgl/rippleDistort';\nconst destroy = initRippleDistort('.ripple-wrap');",
+      stageHTML:'<div class="ripple-wrap" data-role="ripple-wrap"><canvas class="kx-ripple-source" data-role="ripple-source"></canvas><canvas class="kx-ripple-canvas"></canvas></div>',
+      init:function(stage,K){
+        var src = stage.querySelector('[data-role="ripple-source"]');
+        src.dataset.seed='kinetic-ripple'; src.dataset.hue='#4f6bff';
+        K.initGenerativeArt([src]);
+        return K.initRippleDistort(stage.querySelectorAll('[data-role="ripple-wrap"]'));
+      } },
+
+    { id:'gradientMesh', cat:'webgl', file:'effects/webgl/gradientMesh.js', title:'Gradient Mesh',
+      desc:'An animated, organic mesh-gradient background — soft color blobs drifting via noise, in a shader.',
+      note:'The hero background above uses this exact function.',
+      code:"<canvas class=\"gradient-mesh\"></canvas>\nimport { initGradientMesh } from 'kinetic/effects/webgl/gradientMesh';\nconst destroy = initGradientMesh('.gradient-mesh', {\n  colors: ['#4f6bff', '#ff5f7e', '#2be3b0', '#0b0b10']\n});",
+      stageHTML:'<canvas data-role="mesh-demo" style="width:100%;height:100%;"></canvas>',
+      init:function(stage,K){ return K.initGradientMesh(stage.querySelector('[data-role="mesh-demo"]'), { speed:.08 }); } },
+
+    { id:'grainOverlay', cat:'webgl', file:'effects/webgl/grainOverlay.js', title:'Grain Overlay',
+      desc:'Film-grain texture — a near-zero-cost CSS version (used on this page) and a true-noise canvas variant.',
+      note:'The whole page already has the CSS version layered over it.',
+      code:"<div class=\"kx-grain\" aria-hidden=\"true\"></div>\n/* or, for true per-frame noise: */\nimport { initAnimatedGrainCanvas } from 'kinetic/effects/webgl/grainOverlay';\nconst destroy = initAnimatedGrainCanvas('.grain-canvas', { opacity: 0.05 });",
+      stageHTML:'<canvas data-role="grain-demo" style="width:100%;height:100%;"></canvas>',
+      init:function(stage,K){ return K.initAnimatedGrainCanvas(stage.querySelector('[data-role="grain-demo"]'), { opacity:.5, fps:12 }); } },
+
+    { id:'imageDistortHover', cat:'webgl', file:'effects/webgl/imageDistortHover.js', title:'Lens Distort Hover',
+      desc:'A lighter cursor-following lens distortion — one point instead of a trail, cheap for a grid of many.',
+      code:"<div class=\"lens-wrap\">\n  <canvas class=\"kx-lens-source\"></canvas>\n  <canvas class=\"kx-lens-canvas\"></canvas>\n</div>\nimport { initImageDistortHover } from 'kinetic/effects/webgl/imageDistortHover';\nconst destroy = initImageDistortHover('.lens-wrap', { strength: 0.06 });",
+      stageHTML:'<div class="lens-wrap" data-role="lens-wrap"><canvas class="kx-lens-source" data-role="lens-source"></canvas><canvas class="kx-lens-canvas"></canvas></div>',
+      init:function(stage,K){
+        var src = stage.querySelector('[data-role="lens-source"]');
+        src.dataset.seed='kinetic-lens'; src.dataset.hue='#ff5f7e';
+        K.initGenerativeArt([src]);
+        return K.initImageDistortHover(stage.querySelectorAll('[data-role="lens-wrap"]'));
+      } },
+
+    { id:'generativeArt', cat:'webgl', file:'effects/webgl/generativeArt.js', title:'Generative Art',
+      desc:'Deterministic, seeded pixel-block covers — same seed always renders the same artwork, no image asset.',
+      code:"<canvas class=\"gen-art\" data-seed=\"project-14\" data-hue=\"#4f6bff\"></canvas>\nimport { initGenerativeArt } from 'kinetic/effects/webgl/generativeArt';\nconst destroy = initGenerativeArt('.gen-art');",
+      stageHTML:genArtCells(),
+      init:function(stage,K){ return K.initGenerativeArt(stage.querySelectorAll('[data-role="genart-grid"] canvas')); } },
+
+    { id:'particleField', cat:'webgl', file:'effects/webgl/particleField.js', title:'Particle Field',
+      desc:'An interactive constellation network on 2D canvas — particles drift, link, and are pushed by the cursor.',
+      code:"<canvas class=\"particles\"></canvas>\nimport { initParticleField } from 'kinetic/effects/webgl/particleField';\nconst destroy = initParticleField('.particles', { count: 60, linkDistance: 120 });",
+      stageHTML:'<canvas data-role="particles-demo" style="width:100%;height:100%;"></canvas>',
+      init:function(stage,K){ return K.initParticleField(stage.querySelector('[data-role="particles-demo"]'), { count:40 }); } },
+
+    { id:'imageSequenceScrub', cat:'webgl', file:'effects/webgl/imageSequenceScrub.js', title:'Image Sequence Scrub',
+      desc:'Scrubs a preloaded frame sequence to canvas as you scroll — the "spin the product" technique behind Apple-style product pages.',
+      note:'Needs real scroll height to feel right — full-size live demo below the chapters ↓',
+      code:"import { initImageSequenceScrub } from 'kinetic/effects/webgl/imageSequenceScrub';\nconst destroy = initImageSequenceScrub('.kx-sequence', {\n  frames: Array.from({length: 90}, (_, i) => `/seq/frame_${i}.jpg`),\n  scrollRoot: document.querySelector('.seq-outer')\n});",
+      stageHTML:'<span class="eyebrow">See the full demo below ↓</span>' },
+
+    /* ---------------- 05 · Transitions ---------------- */
+    { id:'pageTransition', cat:'transitions', file:'effects/transitions/pageTransition.js', title:'Page Transition',
+      desc:'Router-agnostic SPA transition: an overlay covers, you navigate, then it reveals — works with any router.',
+      code:"<div class=\"transition-overlay\" aria-hidden=\"true\"></div>\nimport { initPageTransition } from 'kinetic/effects/transitions/pageTransition';\nconst { runTransition } = initPageTransition({ duration: 600 });\nlink.addEventListener('click', e => {\n  e.preventDefault();\n  runTransition(() => navigate(link.href));\n});",
+      stageHTML:'<div class="pt-stage" data-role="pt-stage"><button class="demo-btn" data-role="pt-btn">Trigger transition</button><div class="pt-overlay" data-role="pt-overlay" aria-hidden="true"></div></div>',
+      init:function(stage){
+        var overlay = stage.querySelector('[data-role="pt-overlay"]');
+        var btn = stage.querySelector('[data-role="pt-btn"]');
+        btn.addEventListener('click', function(){
+          overlay.classList.add('is-covering');
+          setTimeout(function(){
+            overlay.classList.add('is-covered');
+            requestAnimationFrame(function(){
+              overlay.classList.remove('is-covering'); overlay.classList.remove('is-covered');
+              overlay.classList.add('is-revealing');
+              setTimeout(function(){ overlay.classList.remove('is-revealing'); }, 550);
+            });
+          }, 550);
+        });
+      } },
+
+    { id:'imageRevealMask', cat:'transitions', file:'effects/transitions/imageRevealMask.js', title:'Image Reveal Mask',
+      desc:'Reveals an image with an animated clip-path sweep once it scrolls into view — a curtain pulling back.',
+      code:"<div class=\"reveal-mask\"><img src=\"...\"></div>\nimport { initImageRevealMask } from 'kinetic/effects/transitions/imageRevealMask';\nconst destroy = initImageRevealMask('.reveal-mask');",
+      stageHTML:'<div class="kx-reveal-mask" data-role="reveal-mask" style="width:100%;height:100%;border-radius:10px;background:linear-gradient(135deg,var(--cobalt),var(--mint));"></div>',
+      init:function(stage,K){ return K.initImageRevealMask(stage.querySelectorAll('[data-role="reveal-mask"]'), { threshold:.1 }); } },
+
+    { id:'curtainReveal', cat:'transitions', file:'effects/transitions/curtainReveal.js', title:'Curtain Reveal',
+      desc:'A full-viewport curtain that slides away on load — the classic preloader-to-hero handoff.',
+      code:"<div class=\"curtain\" aria-hidden=\"true\">\n  <div class=\"curtain-panel\"></div>\n  <div class=\"curtain-panel\"></div>\n</div>\nimport { runCurtainReveal } from 'kinetic/effects/transitions/curtainReveal';\nrunCurtainReveal('.curtain', { onDone: () => startHero() });",
+      stageHTML:'<div class="curtain-stage" data-role="curtain-stage"><button class="demo-btn" data-role="curtain-btn" style="position:relative;z-index:1;">Replay intro</button></div>',
+      init:function(stage){
+        var host = stage.querySelector('[data-role="curtain-stage"]');
+        var btn = stage.querySelector('[data-role="curtain-btn"]');
+        function play(){
+          var wrap = document.createElement('div');
+          wrap.className = 'curtain-demo';
+          wrap.innerHTML = '<div class="panel"></div><div class="panel"></div>';
+          host.appendChild(wrap);
+          var panels = [].slice.call(wrap.querySelectorAll('.panel'));
+          setTimeout(function(){
+            panels.forEach(function(p,i){ setTimeout(function(){ p.classList.add('is-open'); }, i*90); });
+            setTimeout(function(){ wrap.remove(); }, 90*panels.length + 800);
+          }, 150);
+        }
+        btn.addEventListener('click', play);
+        play();
+      } },
+
+    { id:'morphTransition', cat:'transitions', file:'effects/transitions/morphTransition.js', title:'FLIP Morph',
+      desc:'Animates an element from its old bounding box to its new one on any layout change — a shared-element morph.',
+      code:"import { flip } from 'kinetic/effects/transitions/morphTransition';\nconst play = flip(cardEl);       // 1. snapshot BEFORE the change\nmoveCardToNewPosition(cardEl);   // 2. make the DOM/layout change\nplay();                          // 3. animate old box -> new box",
+      stageHTML:'<div class="flip-row" data-role="flip-row"><div class="flip-chip" style="background:var(--cobalt);color:#fff;">A</div><div class="flip-chip" style="background:var(--ink-raise);">B</div><div class="flip-chip" style="background:var(--ink-raise);">C</div></div>',
+      init:function(stage,K){
+        var row = stage.querySelector('[data-role="flip-row"]');
+        [].slice.call(row.children).forEach(function(chip){
+          chip.addEventListener('click', function(){
+            if (row.firstElementChild === chip) return;
+            var play = K.flip(chip, { duration:500 });
+            row.insertBefore(chip, row.firstElementChild);
+            play();
+          });
+        });
+      } },
+
+    { id:'viewTransitionPage', cat:'transitions', file:'effects/transitions/viewTransitionPage.js', title:'View Transition (native)',
+      desc:'Wraps the native View Transitions API for SPA route changes — the browser cross-fades/morphs automatically, no overlay choreography needed.',
+      note:(typeof document!=='undefined' && document.startViewTransition) ? 'Supported in this browser — click to see it run.' : 'Not supported in this browser — falls back to an instant swap automatically.',
+      code:"import { runViewTransition, tagViewTransition } from 'kinetic/effects/transitions/viewTransitionPage';\ntagViewTransition(heroImage, 'hero-image'); // same name on both pages\nlink.addEventListener('click', e => {\n  e.preventDefault();\n  runViewTransition(() => navigate(link.href));\n});",
+      stageHTML:'<div class="vt-page-stage" data-role="vt-stage"><div class="vt-page-card" data-role="vt-card" style="background:linear-gradient(135deg,var(--cobalt),var(--ink));"><span data-role="vt-label">Page One</span></div><button class="demo-btn" data-role="vt-btn" style="position:absolute;bottom:14px;right:14px;">Transition</button></div>',
+      init:function(stage,K){
+        var card = stage.querySelector('[data-role="vt-card"]');
+        var label = stage.querySelector('[data-role="vt-label"]');
+        var btn = stage.querySelector('[data-role="vt-btn"]');
+        var states = [
+          { bg:'linear-gradient(135deg,var(--cobalt),var(--ink))', text:'Page One' },
+          { bg:'linear-gradient(135deg,var(--coral),var(--ink))', text:'Page Two' }
+        ];
+        var i = 0;
+        card.style.viewTransitionName = 'kx-vt-demo';
+        btn.addEventListener('click', function(){
+          K.runViewTransition(function(){
+            i = 1 - i;
+            card.style.background = states[i].bg;
+            label.textContent = states[i].text;
+          });
+        });
+      } },
+
+    { id:'viewTransitionBlock', cat:'transitions', file:'effects/transitions/viewTransitionBlock.js', title:'View Transition (block filter)',
+      desc:'The same native API applied to a local DOM update — filtering a list — with an automatic FLIP fallback where the API is unsupported.',
+      code:"import { transitionBlock } from 'kinetic/effects/transitions/viewTransitionBlock';\nfilterBtn.addEventListener('click', () => {\n  transitionBlock(grid, () => applyFilter(grid), { itemSelector: '.item' });\n});",
+      stageHTML:'<div><div class="vt-filter-row" data-role="vt-filters"><button class="demo-chip" data-filter="all">All</button><button class="demo-chip" data-filter="a">Group A</button><button class="demo-chip" data-filter="b">Group B</button></div><div class="vt-filter-grid" data-role="vt-grid"><span class="vt-chip" data-group="a">A1</span><span class="vt-chip" data-group="b">B1</span><span class="vt-chip" data-group="a">A2</span><span class="vt-chip" data-group="b">B2</span><span class="vt-chip" data-group="a">A3</span><span class="vt-chip" data-group="b">B3</span></div></div>',
+      init:function(stage,K){
+        var grid = stage.querySelector('[data-role="vt-grid"]');
+        var items = [].slice.call(grid.querySelectorAll('.vt-chip'));
+        stage.querySelector('[data-role="vt-filters"]').addEventListener('click', function(e){
+          var btn = e.target.closest('[data-filter]');
+          if(!btn) return;
+          var f = btn.dataset.filter;
+          K.transitionBlock(grid, function(){
+            items.forEach(function(chip){ chip.style.display = (f==='all' || chip.dataset.group===f) ? '' : 'none'; });
+          }, { itemSelector:'.vt-chip' });
+        });
+      } },
+
+    /* ---------------- 06 · Loaders ---------------- */
+    { id:'preloader', cat:'loaders', file:'effects/loaders/preloader.js', title:'Asset Preloader',
+      desc:'A percentage counter that tracks real loading progress (images, fonts, promises), not a fake timer.',
+      code:"import { runPreloader } from 'kinetic/effects/loaders/preloader';\nrunPreloader({\n  countEl: document.querySelector('.count'),\n  tasks: [...document.images].map(img => img.decode().catch(() => {})),\n  minDuration: 900,\n  onDone: () => hidePreloader()\n});",
+      stageHTML:'<div class="preloader-demo"><div class="pct" data-role="preloader-pct">0</div><button class="demo-btn ghost" data-role="preloader-btn" style="margin-top:10px;">Simulate load</button></div>',
+      init:function(stage,K){
+        var pct = stage.querySelector('[data-role="preloader-pct"]');
+        var btn = stage.querySelector('[data-role="preloader-btn"]');
+        btn.addEventListener('click', function(){
+          pct.textContent='0';
+          var tasks=[80,160,240,320,400].map(function(ms){ return new Promise(function(res){ setTimeout(res,ms); }); });
+          K.runPreloader({ tasks:tasks, minDuration:400, onProgress:function(p){ pct.textContent=String(p); } });
+        });
+      } },
+
+    { id:'skeletonShimmer', cat:'loaders', file:'effects/loaders/skeletonShimmer.js', title:'Skeleton Shimmer',
+      desc:'Placeholder blocks with a moving light-sweep, swapped for real content once it resolves.',
+      code:"<div class=\"skeleton-wrap\">\n  <div class=\"kx-skeleton\"></div>\n  <div class=\"kx-content\" hidden>Loaded content</div>\n</div>\nimport { resolveSkeleton } from 'kinetic/effects/loaders/skeletonShimmer';\nfetchData().then(() => resolveSkeleton('.skeleton-wrap'));",
+      stageHTML:'<div class="skeleton-demo" data-role="skeleton-wrap"><div class="kx-skeleton" data-role="skeleton"></div><div class="kx-content" data-role="skeleton-content" hidden>Loaded: 3 new messages</div><button class="demo-btn ghost" data-role="skeleton-btn" style="margin-top:10px;">Load content</button></div>',
+      init:function(stage,K){
+        var btn = stage.querySelector('[data-role="skeleton-btn"]');
+        btn.addEventListener('click', function(){
+          var wrap = stage.querySelector('[data-role="skeleton-wrap"]');
+          var sk = stage.querySelector('[data-role="skeleton"]');
+          sk.classList.remove('is-done'); sk.style.position=''; sk.hidden=false;
+          var content = stage.querySelector('[data-role="skeleton-content"]');
+          content.hidden=true; content.classList.remove('in');
+          setTimeout(function(){ K.resolveSkeleton([wrap]); }, 700);
+        });
+      } },
+
+    { id:'scrollProgressBar', cat:'loaders', file:'effects/loaders/scrollProgressBar.js', title:'Reading Progress Bar',
+      desc:'A convenience preset of scrollProgress, pre-wired for the reading-progress use case on articles.',
+      note:'Same bar as the top of this page — this module is the article-reading preset.',
+      code:"<div class=\"read-progress\"></div>\nimport { initScrollProgressBar } from 'kinetic/effects/loaders/scrollProgressBar';\nconst destroy = initScrollProgressBar('.read-progress', { target: articleEl });",
+      stageHTML:'<span class="eyebrow">Look at the top of the page ↑</span>' },
+
+    /* ---------------- 07 · Cards & 3D ---------------- */
+    { id:'tilt3d', cat:'cards', file:'effects/cards/tilt3d.js', title:'3D Tilt',
+      desc:'Cursor-driven rotateX/Y tilt with a subtle lift and glare layer, damped smoothly on release.',
+      code:"<div class=\"tilt\"><div class=\"tilt-inner\">...<div class=\"tilt-glare\"></div></div></div>\nimport { initTilt3d } from 'kinetic/effects/cards/tilt3d';\nconst destroy = initTilt3d('.tilt', { max: 12, glare: true });",
+      stageHTML:'<div class="kx-tilt" data-role="tilt" style="width:140px;height:100px;"><div class="kx-tilt-inner">Tilt me<div class="kx-tilt-glare"></div></div></div>',
+      init:function(stage,K){ return K.initTilt3d(stage.querySelectorAll('[data-role="tilt"]'), { max:14 }); } },
+
+    { id:'hoverGlow', cat:'cards', file:'effects/cards/hoverGlow.js', title:'Hover Glow',
+      desc:'A soft colored glow that tracks the cursor around a card border — an emissive edge, not a surface light.',
+      code:"import { initHoverGlow } from 'kinetic/effects/cards/hoverGlow';\nconst destroy = initHoverGlow('.glow-card');",
+      stageHTML:'<div class="glow-card-demo" data-role="glow" style="width:140px;height:100px;">Hover the edge</div>',
+      init:function(stage,K){ return K.initHoverGlow(stage.querySelectorAll('[data-role="glow"]')); } },
+
+    { id:'flipCard', cat:'cards', file:'effects/cards/flipCard.js', title:'Flip Card',
+      desc:'A 3D card flip between front/back faces, triggered by click or hover — keyboard accessible too.',
+      code:"<div class=\"flip\"><div class=\"flip-inner\">\n  <div class=\"flip-front\">Front</div>\n  <div class=\"flip-back\">Back</div>\n</div></div>\nimport { initFlipCard } from 'kinetic/effects/cards/flipCard';\nconst destroy = initFlipCard('.flip', { trigger: 'click' });",
+      stageHTML:'<div class="kx-flip" data-role="flip"><div class="kx-flip-inner"><div class="kx-flip-front">Click</div><div class="kx-flip-back">Flipped</div></div></div>',
+      init:function(stage,K){ return K.initFlipCard(stage.querySelectorAll('[data-role="flip"]')); } },
+
+    { id:'magneticCard', cat:'cards', file:'effects/cards/magneticCard.js', title:'Magnetic Card',
+      desc:'Combines magnetic pull with tilt for one richer hover, sharing a single pointer sample per frame.',
+      code:"import { initMagneticCard } from 'kinetic/effects/cards/magneticCard';\nconst destroy = initMagneticCard('.magnetic-card', { pull: 0.15, tilt: 8 });",
+      stageHTML:'<div class="magnetic-card-demo" data-role="magcard" style="width:140px;height:100px;">Hover + move</div>',
+      init:function(stage,K){ return K.initMagneticCard(stage.querySelectorAll('[data-role="magcard"]'), { pull:.18, tilt:10 }); } },
+
+    { id:'stackedScrollCards', cat:'cards', file:'effects/cards/stackedScrollCards.js', title:'Stacked Scroll Cards',
+      desc:'A sticky card stack — each card pins a little further down than the last, so the next one slides up and covers it, scaling and dimming underneath.',
+      note:'Full-size live demo below the chapters ↓',
+      code:"<div class=\"kx-stack\">\n  <div class=\"kx-stack-card\">One</div>\n  <div class=\"kx-stack-card\">Two</div>\n  <div class=\"kx-stack-card\">Three</div>\n</div>\nimport { initStackedScrollCards } from 'kinetic/effects/cards/stackedScrollCards';\nconst destroy = initStackedScrollCards('.kx-stack', { offset: 24 });",
+      stageHTML:'<span class="eyebrow">See the full demo below ↓</span>' },
+
+    /* ---------------- 08 · Grid & Layout ---------------- */
+    { id:'staggerIn', cat:'grid', file:'effects/grid/staggerIn.js', title:'Stagger In',
+      desc:"Animates a grid's children in with an incremental per-item delay, triggered once on scroll.",
+      code:"<div class=\"stagger\"><div class=\"item\">...</div>...</div>\nimport { initStaggerIn } from 'kinetic/effects/grid/staggerIn';\nconst destroy = initStaggerIn('.stagger', { step: 60 });",
+      stageHTML:'<div class="stagger-mini kx-stagger" data-role="stagger">'+chips(6)+'</div>',
+      init:function(stage,K){ return K.initStaggerIn(stage.querySelectorAll('[data-role="stagger"]'), { step:70, childSelector:'.chip' }); } },
+
+    { id:'gridMorph', cat:'grid', file:'effects/grid/gridMorph.js', title:'Grid Morph (FLIP)',
+      desc:'Animates a layout/filter change so persisting items glide to their new position instead of jump-cutting.',
+      code:"import { morphLayout } from 'kinetic/effects/grid/gridMorph';\nconst play = morphLayout(gridEl, '.item');\napplyNewLayoutClasses(gridEl);\nplay();",
+      stageHTML:'<div><div class="morph-grid" data-role="morph-grid"><div class="chip">1</div><div class="chip">2</div><div class="chip">3</div></div><button class="demo-btn ghost" data-role="morph-btn" style="margin-top:10px;">Shuffle</button></div>',
+      init:function(stage,K){
+        var btn = stage.querySelector('[data-role="morph-btn"]');
+        var grid = stage.querySelector('[data-role="morph-grid"]');
+        btn.addEventListener('click', function(){
+          var play = K.morphLayout(grid, '.chip');
+          var chipsArr = [].slice.call(grid.children);
+          chipsArr.sort(function(){ return Math.random()-.5; }).forEach(function(c){ grid.appendChild(c); });
+          play();
+        });
+      } },
+
+    { id:'infiniteMarqueeGrid', cat:'grid', file:'effects/grid/infiniteMarqueeGrid.js', title:'Infinite Marquee Grid',
+      desc:'Multiple ticker rows with alternating directions — a wall-of-content effect, one shared tick for all rows.',
+      code:"<div class=\"marquee-grid\">\n  <div class=\"marquee-row\"><div class=\"marquee-track\">...</div></div>\n  <div class=\"marquee-row\"><div class=\"marquee-track\">...</div></div>\n</div>\nimport { initInfiniteMarqueeGrid } from 'kinetic/effects/grid/infiniteMarqueeGrid';\nconst destroy = initInfiniteMarqueeGrid('.marquee-grid');",
+      stageHTML:'<div class="marquee-grid-demo" data-role="mgrid"><div class="row"><div class="track">Design · Motion · Code · </div></div><div class="row"><div class="track">Awwwards · FWA · CSSDA · </div></div></div>',
+      init:function(stage,K){ return K.initInfiniteMarqueeGrid(stage.querySelector('[data-role="mgrid"]'), { speed:20, rowSelector:'.row' }); } },
+
+    /* ---------------- 09 · Navigation ---------------- */
+    { id:'magneticNav', cat:'nav', file:'effects/nav/magneticNav.js', title:'Magnetic Nav Pill',
+      desc:'A pill background that slides and resizes under whichever link is hovered, using FLIP to glide.',
+      code:"<nav class=\"magnetic-nav\">\n  <span class=\"nav-pill\"></span>\n  <a class=\"nav-link is-active\">Work</a>\n  <a class=\"nav-link\">About</a>\n</nav>\nimport { initMagneticNav } from 'kinetic/effects/nav/magneticNav';\nconst destroy = initMagneticNav('.magnetic-nav');",
+      stageHTML:'<nav class="nav-demo" data-role="magnav"><span class="pill" data-role="magnav-pill"></span><a class="is-active" data-role="magnav-link">Work</a><a data-role="magnav-link">About</a><a data-role="magnav-link">Contact</a></nav>',
+      init:function(stage,K){ return K.initMagneticNav(stage.querySelector('[data-role="magnav"]'), { linkSelector:'[data-role="magnav-link"]', pillSelector:'[data-role="magnav-pill"]' }); } },
+
+    { id:'menuMorph', cat:'nav', file:'effects/nav/menuMorph.js', title:'Fullscreen Menu Morph',
+      desc:'A hamburger that morphs into an X, driving a fullscreen menu that clips open from the trigger.',
+      code:"<button class=\"menu-trigger\" aria-expanded=\"false\"><span></span><span></span><span></span></button>\n<div class=\"menu-overlay\" aria-hidden=\"true\">...</div>\nimport { initMenuMorph } from 'kinetic/effects/nav/menuMorph';\nconst destroy = initMenuMorph();",
+      stageHTML:'<div class="menu-demo-stage" data-role="menu-stage"><button class="demo-btn" data-role="menu-trigger" style="position:relative;z-index:3;">Open menu</button><div class="menu-demo-overlay" data-role="menu-overlay">Menu content</div></div>',
+      init:function(stage){
+        var trigger = stage.querySelector('[data-role="menu-trigger"]');
+        var overlay = stage.querySelector('[data-role="menu-overlay"]');
+        trigger.addEventListener('click', function(){
+          var open = overlay.classList.toggle('is-open');
+          trigger.textContent = open ? 'Close menu' : 'Open menu';
+        });
+      } },
+
+    { id:'stickyHeaderHide', cat:'nav', file:'effects/nav/stickyHeaderHide.js', title:'Sticky Header Hide',
+      desc:'Hides the header on scroll-down, reveals it on scroll-up — always available, never in the way.',
+      note:"This page's own header, above — scroll down then up.",
+      code:"import { initStickyHeaderHide } from 'kinetic/effects/nav/stickyHeaderHide';\nconst destroy = initStickyHeaderHide('.site-header', { threshold: 8 });",
+      stageHTML:'<span class="eyebrow">Scroll down, then up ↑</span>' },
+
+    { id:'gooeyIndicator', cat:'nav', file:'effects/nav/gooeyIndicator.js', title:'Gooey Nav Indicator',
+      desc:'A liquid metaball indicator — a lead pill jumps to the hovered link while a trail pill chases it, merged by an SVG goo filter into one blob.',
+      code:"<nav class=\"kx-gooey-nav\">\n  <div class=\"kx-gooey-fx\"><span class=\"kx-gooey-lead\"></span><span class=\"kx-gooey-trail\"></span></div>\n  <a data-gooey class=\"is-active\">Work</a><a data-gooey>About</a><a data-gooey>Contact</a>\n</nav>\nimport { initGooeyIndicator } from 'kinetic/effects/nav/gooeyIndicator';\nconst destroy = initGooeyIndicator('.kx-gooey-nav');",
+      stageHTML:'<nav class="gooey-demo kx-gooey-nav" data-role="gooeynav"><div class="gooey-fx kx-gooey-fx"><span class="kx-gooey-lead"></span><span class="kx-gooey-trail"></span></div><a data-gooey class="is-active">Work</a><a data-gooey>About</a><a data-gooey>Contact</a></nav>',
+      init:function(stage,K){ return K.initGooeyIndicator(stage.querySelector('[data-role="gooeynav"]')); } },
+
+    /* ---------------- 10 · Buttons & CTA ---------------- */
+    { id:'magneticButton', cat:'buttons', file:'effects/buttons/magneticButton.js', title:'Magnetic Button',
+      desc:'A tuned preset over the magnetic effect: stronger pull, bouncier release, a lagging inner label.',
+      code:"<button class=\"magnetic-btn\"><span class=\"magnetic-btn-inner\">Get in touch</span></button>\nimport { initMagneticButton } from 'kinetic/effects/buttons/magneticButton';\nconst destroy = initMagneticButton('.magnetic-btn');",
+      stageHTML:'<button class="demo-btn" data-role="magbtn-outer" style="position:relative;"><span data-role="magbtn-inner">Get in touch</span></button>',
+      init:function(stage,K){
+        var outer = stage.querySelector('[data-role="magbtn-outer"]');
+        var inner = stage.querySelector('[data-role="magbtn-inner"]');
+        K.initMagnetic([outer], { pull:.4, releaseEase:K.cssEasing.outBack, releaseDuration:600 });
+        K.initMagnetic([inner], { pull:.6, releaseEase:K.cssEasing.outBack, releaseDuration:600 });
+      } },
+
+    { id:'rippleClick', cat:'buttons', file:'effects/buttons/rippleClick.js', title:'Ripple Click',
+      desc:'Material-style expanding ripple from the exact click point, a short-lived span with scale+fade.',
+      code:"import { initRippleClick } from 'kinetic/effects/buttons/rippleClick';\nconst destroy = initRippleClick('.ripple-btn');",
+      stageHTML:'<button class="demo-btn ripple-btn" data-role="ripplebtn">Click anywhere</button>',
+      init:function(stage,K){ return K.initRippleClick(stage.querySelectorAll('[data-role="ripplebtn"]'), { color:'rgba(11,11,16,.35)' }); } },
+
+    { id:'borderDraw', cat:'buttons', file:'effects/buttons/borderDraw.js', title:'Border Draw',
+      desc:'An SVG outline that draws itself on hover via stroke-dashoffset — traced in real time.',
+      code:"<button class=\"draw-btn\">\n  <svg class=\"draw-svg\"><rect class=\"draw-rect\" rx=\"8\"/></svg>\n  <span>Explore work</span>\n</button>\nimport { initBorderDraw } from 'kinetic/effects/buttons/borderDraw';\nconst destroy = initBorderDraw('.draw-btn');",
+      stageHTML:'<button class="draw-btn" data-role="drawbtn"><svg class="draw-svg" data-role="drawsvg"><rect class="draw-rect" data-role="drawrect" rx="8"></rect></svg><span>Hover me</span></button>',
+      init:function(stage,K){ return K.initBorderDraw(stage.querySelectorAll('[data-role="drawbtn"]'), { rectSelector:'[data-role="drawrect"]', svgSelector:'[data-role="drawsvg"]' }); } },
+
+    /* ---------------- 11 · Backgrounds ---------------- */
+    { id:'auroraGradient', cat:'backgrounds', file:'effects/backgrounds/auroraGradient.js', title:'Aurora Gradient (CSS)',
+      desc:'A CSS-only animated aurora backdrop — blurred radial blobs drifting via keyframes, zero JS per frame.',
+      code:"<div class=\"aurora\"><span></span><span></span><span></span></div>\nimport { initAuroraGradient } from 'kinetic/effects/backgrounds/auroraGradient';\nconst destroy = initAuroraGradient('.aurora', { colors: ['#4f6bff','#ff5f7e','#2be3b0'] });",
+      stageHTML:'<div class="aurora-demo" data-role="aurora"><span></span><span></span><span></span></div>',
+      init:function(stage,K){ return K.initAuroraGradient(stage.querySelector('[data-role="aurora"]')); } },
+
+    { id:'dotGrid', cat:'backgrounds', file:'effects/backgrounds/dotGrid.js', title:'Dot Grid',
+      desc:'An evenly-spaced dot field where each dot pulses in scale/opacity by proximity to the cursor.',
+      code:"<canvas class=\"dot-grid\"></canvas>\nimport { initDotGrid } from 'kinetic/effects/backgrounds/dotGrid';\nconst destroy = initDotGrid('.dot-grid', { gap: 34, influence: 140 });",
+      stageHTML:'<canvas data-role="dotgrid-demo" style="width:100%;height:100%;"></canvas>',
+      init:function(stage,K){ return K.initDotGrid(stage.querySelector('[data-role="dotgrid-demo"]'), { gap:22, influence:100 }); } },
+
+    { id:'noiseBackground', cat:'backgrounds', file:'effects/backgrounds/noiseBackground.js', title:'Noise Background',
+      desc:'A slow-drifting simplex-noise field rendered as soft monochrome clouds — organic ambient motion.',
+      code:"<canvas class=\"noise-bg\"></canvas>\nimport { initNoiseBackground } from 'kinetic/effects/backgrounds/noiseBackground';\nconst destroy = initNoiseBackground('.noise-bg', { scale: 0.006, speed: 0.00015 });",
+      stageHTML:'<canvas data-role="noise-demo" style="width:100%;height:100%;"></canvas>',
+      init:function(stage,K){ return K.initNoiseBackground(stage.querySelector('[data-role="noise-demo"]')); } },
+
+    /* ---------------- 12 · Forms ---------------- */
+    { id:'floatingLabel', cat:'forms', file:'effects/forms/floatingLabel.js', title:'Floating Label',
+      desc:'The label-shrinks-above-the-input pattern, with a JS-driven has-value class for controlled inputs.',
+      code:"<div class=\"field\">\n  <input class=\"field-input\" placeholder=\" \">\n  <label class=\"field-label\">Email</label>\n</div>\nimport { initFloatingLabel } from 'kinetic/effects/forms/floatingLabel';\nconst destroy = initFloatingLabel('.field');",
+      stageHTML:'<div class="field-demo" data-role="field"><input data-role="field-input" placeholder=" "><label>Email</label></div>',
+      init:function(stage,K){ return K.initFloatingLabel(stage.querySelectorAll('[data-role="field"]'), { inputSelector:'[data-role="field-input"]' }); } },
+
+    { id:'customCheckbox', cat:'forms', file:'effects/forms/customCheckbox.js', title:'Custom Checkbox',
+      desc:'A morphing checkmark over a real, accessible native input — the input stays the source of truth.',
+      code:"<label class=\"checkbox\">\n  <input type=\"checkbox\" class=\"checkbox-input\">\n  <span class=\"checkbox-box\">...</span> Subscribe\n</label>\nimport { initCustomCheckbox } from 'kinetic/effects/forms/customCheckbox';\nconst destroy = initCustomCheckbox('.checkbox');",
+      stageHTML:'<label class="checkbox-demo" data-role="cb"><input type="checkbox" data-role="cb-input"><span class="checkbox-box"><svg class="checkbox-check" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5L13 4.5"></path></svg></span>Subscribe</label>',
+      init:function(stage,K){ return K.initCustomCheckbox(stage.querySelectorAll('[data-role="cb"]'), { inputSelector:'[data-role="cb-input"]' }); } }
+  ];
+})();
+</script>
+<script>(function(){
+'use strict';
+var K = Kinetic;
+/**
+ * Kinetic showcase — wiring entry point (ES module).
+ * Registry-driven demo rendering: imports the vanilla core directly from
+ * ../src (dogfooding the library exactly as a consumer would in a Vite
+ * project), plus the 58-entry EFFECTS registry, and builds every chapter
+ * and card from that data instead of hand-writing 58 card blocks.
+ */
+
+const $ = (sel, root) => (root || document).querySelector(sel);
+const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
+
+function esc(s) {
+  return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+/* ---------------- global site-wide effects ---------------- */
+K.initCustomCursor({ cursorEl: $('#cursor'), labelEl: $('#cursorLabel'), speed: .2 });
+K.initScrollProgress('#readProgress');
+K.initStickyHeaderHide('#siteHeader', { revealAtTop: 24 });
+K.initMarquee('#heroMarquee', { speed: 34 });
+K.initCounters('.stat-num', { duration: 1200 });
+K.initSplitText('#heroTitle', { step: .028 });
+requestAnimationFrame(() => requestAnimationFrame(() => $('#heroTitle').classList.add('in')));
+
+// Hero background: a quiet gradient mesh behind the headline.
+K.initGradientMesh('#heroMesh', { colors: ['#4f6bff', '#ff5f7e', '#2be3b0', '#0b0b10'], speed: .05 });
+
+// Pinned progress demo
+K.initPinSection('#pinOuter', { onProgress: p => { $('#pinProgressNum').textContent = String(Math.round(p * 100)).padStart(2, '0'); } });
+// Horizontal scroll demo
+K.initHorizontalScroll('#hscrollOuter', { trackSelector: '#hscrollTrack' });
+// Stacked scroll cards demo
+K.initStackedScrollCards('#stackDemo', { offset: 28, scaleStep: 0.035 });
+// Image sequence scrub demo — frames generated on the fly, no photo assets needed
+K.initImageSequenceScrub('#seqCanvas', {
+  frames: genRotationFrames(48, '#4f6bff', '#ff5f7e'),
+  scrollRoot: $('#seqOuter'),
+  fit: 'contain'
+});
+
+/* ---------------- chapters ---------------- */
+const CHAPTERS = [
+  { id: 'cursor', num: '01', title: 'Cursor &amp; Pointer', desc: 'The cursor itself, and elements that react to it.' },
+  { id: 'text', num: '02', title: 'Text', desc: 'Type that reveals, decodes, ticks, counts and scrubs.' },
+  { id: 'scroll', num: '03', title: 'Scroll', desc: 'What happens as the page moves under the user.' },
+  { id: 'webgl', num: '04', title: 'WebGL &amp; Canvas', desc: 'Shader and canvas work — the flagship pieces.' },
+  { id: 'transitions', num: '05', title: 'Transitions', desc: 'Getting from one state or view to the next — including native View Transitions.' },
+  { id: 'loaders', num: '06', title: 'Loaders', desc: 'Waiting states that feel considered, not stalled.' },
+  { id: 'cards', num: '07', title: 'Cards &amp; 3D', desc: 'Hover-responsive surfaces with real depth.' },
+  { id: 'grid', num: '08', title: 'Grid &amp; Layout', desc: 'Collections of things entering and reordering.' },
+  { id: 'nav', num: '09', title: 'Navigation', desc: 'Headers, menus, and the chrome around the content.' },
+  { id: 'buttons', num: '10', title: 'Buttons &amp; CTA', desc: 'The elements people actually click.' },
+  { id: 'backgrounds', num: '11', title: 'Backgrounds', desc: 'Ambient motion that never competes with content.' },
+  { id: 'forms', num: '12', title: 'Forms', desc: 'Inputs that acknowledge the person filling them.' }
+];
+
+const chaptersRoot = $('#chapters');
+CHAPTERS.forEach(ch => {
+  const items = EFFECTS.filter(e => e.cat === ch.id);
+  const section = document.createElement('section');
+  section.className = 'chapter wrap kx-reveal';
+  section.id = ch.id;
+  section.innerHTML =
+    `<div class="chapter-head">
+      <div><div class="chapter-num">${ch.num} — ${ch.title.toUpperCase().replace(/&AMP;/g, '&')}</div>
+      <h2>${ch.title}</h2>
+      <p class="chapter-desc" style="margin-top:10px;">${ch.desc}</p></div>
+      <div class="chapter-count">${items.length} effect${items.length === 1 ? '' : 's'}</div>
+    </div>
+    <div class="effects-grid"></div>`;
+  chaptersRoot.appendChild(section);
+  const grid = section.querySelector('.effects-grid');
+
+  items.forEach(effect => {
+    const card = document.createElement('article');
+    card.className = 'effect-card kx-reveal';
+    card.innerHTML =
+      `<div class="effect-card-stage">${effect.stageHTML || ''}</div>
+      <div class="effect-card-body">
+        <p class="effect-file">${effect.file}</p>
+        <h3>${effect.title}</h3>
+        <p class="effect-desc">${effect.desc}</p>
+        ${effect.note ? `<p class="demo-note">${effect.note}</p>` : ''}
+        <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre><code>${esc(effect.code)}</code></pre></div>
+      </div>`;
+    grid.appendChild(card);
+    const stage = card.querySelector('.effect-card-stage');
+    const copyBtn = card.querySelector('.copy-btn');
+    copyBtn.addEventListener('click', () => {
+      const text = effect.code;
+      const done = () => { copyBtn.textContent = 'Copied'; copyBtn.classList.add('copied'); setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1100); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(text); done(); });
+      } else { fallbackCopy(text); done(); }
+    });
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      ta.remove();
+    }
+    if (typeof effect.init === 'function') {
+      try { effect.init(stage, K); } catch (err) { console.error('Kinetic showcase demo failed:', effect.id, err); }
+    }
+  });
+});
+
+/* reveal everything (chapters, cards) */
+K.initScrollReveal();
+
+console.log('%cKinetic', 'font-weight:700;color:#4f6bff;font-size:14px;', `— ${EFFECTS.length} effects loaded. Inspect the K namespace via the module, or window.Kinetic in the single-file build.`);
+
+})();
+</script>

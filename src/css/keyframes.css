@@ -1,0 +1,58 @@
+/**
+ * Kinetic — keyframes.css
+ * Every @keyframes used by the utility classes, kept in one place so
+ * they're easy to audit/reuse directly in your own components.
+ */
+
+@keyframes kx-grain {
+  0%, 100% { transform: translate(0,0); }
+  25%  { transform: translate(-2%,3%); }
+  50%  { transform: translate(3%,-2%); }
+  75%  { transform: translate(-3%,-3%); }
+}
+
+@keyframes kx-pulse { 50% { opacity: .25; } }
+
+@keyframes kx-shimmer {
+  0% { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+
+@keyframes kx-spin { to { transform: rotate(360deg); } }
+
+@keyframes kx-marquee-scroll { to { transform: translateX(-50%); } }
+
+@keyframes kx-fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes kx-scale-in {
+  from { opacity: 0; transform: scale(.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes kx-aurora-drift-1 {
+  0%, 100% { transform: translate(-10%, -10%) scale(1); }
+  50% { transform: translate(10%, 5%) scale(1.15); }
+}
+@keyframes kx-aurora-drift-2 {
+  0%, 100% { transform: translate(10%, 10%) scale(1.1); }
+  50% { transform: translate(-8%, -6%) scale(0.95); }
+}
+@keyframes kx-aurora-drift-3 {
+  0%, 100% { transform: translate(0%, 15%) scale(0.9); }
+  50% { transform: translate(6%, -12%) scale(1.2); }
+}
+
+@keyframes kx-bounce-caret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Driven by animation-timeline: view() — not played once, scrubbed live by
+   scroll position — see effects/scroll/scrollTimelineReveal.js */
+@keyframes kx-timeline-in {
+  from { opacity: 0; transform: translateY(36px); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
